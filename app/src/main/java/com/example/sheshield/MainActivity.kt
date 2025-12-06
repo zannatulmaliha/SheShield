@@ -25,11 +25,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.ProfileScreen
+import com.example.sheshield.HomeScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,8 +39,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SheShieldTheme {
-               // SheShieldApp()
-                ProfileScreen()
+                SheShieldApp()
+              // ProfileScreen()
+
             }
         }
     }
@@ -66,11 +69,10 @@ fun SheShieldApp() {
             }
         }
     ) {
-        Scaffold() { innerPadding ->
-            Greeting(
-                name = "Android",
-                modifier = Modifier.padding(innerPadding)
-            )
+        Scaffold(
+
+        ) { innerPadding ->
+            HomeScreen()
         }
     }
 }
