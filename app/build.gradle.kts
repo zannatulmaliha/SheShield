@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation(libs.androidx.compose.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -66,4 +67,12 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation(libs.androidx.navigation.compose)
+    implementation("com.googlecode.libphonenumber:libphonenumber:8.13.30")
+    implementation(libs.androidx.compose.ui)
+
+    // Also try adding Compose UI Tooling for better support
+    implementation(libs.androidx.compose.ui.tooling)
+
+    // Or try adding the full UI module path
+    implementation("androidx.compose.ui:ui:1.10.0")
 }

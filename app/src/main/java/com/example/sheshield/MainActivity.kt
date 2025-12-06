@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.sheshield.screens.app.SheShieldApp
+import com.example.sheshield.app.SheShieldApp  // Correct import
 import com.example.sheshield.ui.theme.SheShieldTheme
 
 class MainActivity : ComponentActivity() {
