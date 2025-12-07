@@ -25,7 +25,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import com.example.sheshield.ui.theme.SheShieldTheme
+import com.example.sheshield.ProfileScreen
+import com.example.sheshield.HomeScreen
+import com.example.sheshield.TimedCheckIn
+import com.example.sheshield.screens.TrustedContactsScreen
 
+import com.example.sheshield.app.Email
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,10 +49,12 @@ class MainActivity : ComponentActivity() {
                 RespondersNearMeScreen()
 
 
+             //   Email()
             }
         }
     }
 }
+
 
 @PreviewScreenSizes
 @Composable
@@ -71,16 +78,17 @@ fun SheShieldApp() {
             }
         }
     ) {
-//        Scaffold(
-//
-//        ) { innerPadding ->
-//            HomeScreen()
-//        }
-//        Scaffold { paddingValues ->
-//            HomeScreen(
-//                modifier = Modifier.padding(paddingValues)
-//            )
-//        }
+
+        when (currentDestination) {
+            AppDestinations.HOME -> HomeScreen()
+            AppDestinations.CONTACTS -> TrustedContactsScreen(onBack = { currentDestination = AppDestinations.HOME })
+            AppDestinations.MAP -> Text("Map Screen") // Replace with your MapScreen
+            AppDestinations.AI -> Text("AI Help Screen") // Replace with AIHelpScreen
+            AppDestinations.PROFILE -> ProfileScreen()
+        }
+
+
+
     }
 }
 
@@ -95,18 +103,12 @@ enum class AppDestinations(
     PROFILE("Profile", Icons.Default.AccountBox),
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     SheShieldTheme {
-        Greeting("Android")
+
     }
 }
