@@ -32,6 +32,8 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.ProfileScreen
 import com.example.sheshield.HomeScreen
+import com.example.sheshield.TimedCheckIn
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +41,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SheShieldTheme {
-                SheShieldApp()
+               // SheShieldApp()
               // ProfileScreen()
+                TimedCheckIn(
+                    onNavigate = { route ->
+                        // what should happen?
+                        println("Navigate to: $route")
+                    }
+                )
+
 
             }
         }
