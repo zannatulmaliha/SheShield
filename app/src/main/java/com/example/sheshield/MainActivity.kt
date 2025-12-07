@@ -33,6 +33,7 @@ import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.ProfileScreen
 import com.example.sheshield.HomeScreen
 import com.example.sheshield.TimedCheckIn
+import com.example.sheshield.screens.TrustedContactsScreen
 
 import com.example.sheshield.app.Email
 
@@ -42,19 +43,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SheShieldTheme {
-               // SheShieldApp()
-              // ProfileScreen()
-                TimedCheckIn(
-                    onNavigate = { route ->
-                        // what should happen?
-                        println("Navigate to: $route")
-                    }
-                )
+              SheShieldApp()
+               //ProfileScreen()
+//                TimedCheckIn(
+//                    onNavigate = { route ->
+//
+//                        println("Navigate to: $route")
+//                    }
+//                )
 
 
-                //SheShieldApp()
-              // ProfileScreen()
-                Email()
+             //   Email()
             }
         }
     }
@@ -84,8 +83,15 @@ fun SheShieldApp() {
         }
     ) {
 
+        when (currentDestination) {
+            AppDestinations.HOME -> HomeScreen()
+            AppDestinations.CONTACTS -> TrustedContactsScreen(onBack = { currentDestination = AppDestinations.HOME })
+            AppDestinations.MAP -> Text("Map Screen") // Replace with your MapScreen
+            AppDestinations.AI -> Text("AI Help Screen") // Replace with AIHelpScreen
+            AppDestinations.PROFILE -> ProfileScreen()
+        }
 
-            HomeScreen()
+
 
     }
 }
@@ -101,18 +107,12 @@ enum class AppDestinations(
     PROFILE("Profile", Icons.Default.AccountBox),
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     SheShieldTheme {
-        Greeting("Android")
+
     }
 }
