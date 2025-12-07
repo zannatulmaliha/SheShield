@@ -16,10 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.*
-import com.example.sheshield.screens.*
-import com.example.sheshield.navigation.AppNavigation
+
+
 @Composable
-fun SheShieldApp() {
+fun Email() {
 //    AppNavigation()
     val auth = FirebaseAuth.getInstance()
     var isLoggedIn by remember { mutableStateOf(auth.currentUser != null) }

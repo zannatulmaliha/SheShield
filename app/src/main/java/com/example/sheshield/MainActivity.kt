@@ -29,10 +29,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import com.example.sheshield.app.SheShieldApp  // Correct import
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.ProfileScreen
 import com.example.sheshield.HomeScreen
+import com.example.sheshield.app.Email
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,14 +40,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SheShieldTheme {
-                SheShieldApp()
+                //SheShieldApp()
               // ProfileScreen()
-
+                Email()
             }
         }
     }
 }
-}
+
 
 @PreviewScreenSizes
 @Composable
@@ -71,11 +71,10 @@ fun SheShieldApp() {
             }
         }
     ) {
-        Scaffold(
 
-        ) { innerPadding ->
+
             HomeScreen()
-        }
+
     }
 }
 
