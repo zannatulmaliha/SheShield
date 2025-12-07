@@ -34,6 +34,7 @@ import com.example.sheshield.ProfileScreen
 import com.example.sheshield.HomeScreen
 import com.example.sheshield.TimedCheckIn
 
+import com.example.sheshield.app.Email
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,10 +52,14 @@ class MainActivity : ComponentActivity() {
                 )
 
 
+                //SheShieldApp()
+              // ProfileScreen()
+                Email()
             }
         }
     }
 }
+
 
 @PreviewScreenSizes
 @Composable
@@ -78,11 +83,10 @@ fun SheShieldApp() {
             }
         }
     ) {
-        Scaffold(
 
-        ) { innerPadding ->
+
             HomeScreen()
-        }
+
     }
 }
 
