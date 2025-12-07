@@ -75,4 +75,6 @@ dependencies {
 
     // Or try adding the full UI module path
     implementation("androidx.compose.ui:ui:1.10.0")
+
+    implementation("androidx.compose.material:material-icons-extended:1.5.4") // Check for latest version
 }

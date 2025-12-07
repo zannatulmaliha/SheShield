@@ -110,7 +110,8 @@ val countries = listOf(
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+//    onNavigateToContacts: ()
 ) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
@@ -924,7 +925,10 @@ fun profile_settings(userName: String = "User") {
     }
 }
 
+// In ProfileScreen function
+//safety_settings(onContactsClick = onNavigateToContacts) // <--- Pass the function here
 @Composable
+//fun safety_settings(onContactsClick = onNavigateToContacts){
 fun safety_settings() {
     Column(
         modifier = Modifier
