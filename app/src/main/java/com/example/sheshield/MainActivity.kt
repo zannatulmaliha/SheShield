@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import com.example.sheshield.app.SheShieldApp  // Correct import
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.ProfileScreen
 import com.example.sheshield.HomeScreen
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 }
 
 @PreviewScreenSizes
