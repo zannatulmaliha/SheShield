@@ -50,16 +50,22 @@ fun HomeScreen(){
     var currentScreen by remember { mutableStateOf("home") }
 
     when (currentScreen) {
-        "home" -> HomeContent(onCardTwoClick = { currentScreen = "timedCheckIn" })
-        "timedCheckIn" -> TimedCheckIn(onNavigate = { currentScreen = it })
+        "home" -> HomeContent(
+            onCardTwoClick = { currentScreen = "timedCheckIn" },
+            onCardFiveClick = { currentScreen = "responders" }
+            )
+        "timedCheckIn" -> TimedCheckIn(onNavigate = { currentScreen = it },
+            onBack = { currentScreen = "home" }
+        )
+        "responders" -> RespondersNearMeScreen()
     }
 }
 
 @Composable
-fun HomeContent(onCardTwoClick: () -> Unit){
+fun HomeContent(onCardTwoClick: () -> Unit,onCardFiveClick:()->Unit){
 
     val scrollState = rememberScrollState()
-    val img=painterResource(R.drawable.sos5)
+    val img=painterResource(R.drawable.sos6)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.verticalScroll(scrollState).padding(bottom = 35.dp)) {
 
@@ -99,7 +105,7 @@ fun HomeContent(onCardTwoClick: () -> Unit){
            modifier = Modifier.padding(horizontal = 75.dp).height(170.dp)
 
             ){
-            cardFive()
+            cardFive(onClick={onCardFiveClick()})
             }
 
             safe_box()
@@ -139,7 +145,7 @@ fun safe_box(){
 fun top_bar(){
     val image= painterResource(R.drawable.shield2)
     Surface(
-        color= Color(0xFF7831A4),
+        color= Color(0xFF6000E9),
         shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 15.dp, bottomEnd = 15.dp),
         modifier = Modifier.padding(top= 30.dp).fillMaxWidth(1f)
     ) {
@@ -165,7 +171,7 @@ fun top_bar(){
                 )
             }
             Surface (
-                color= Color(0xFF9955C5),
+                color= Color(0xFF7A4BFA),
                 shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomStart =10.dp, bottomEnd = 10.dp),
                 modifier = Modifier.padding(5.dp).fillMaxWidth(1f),
 
@@ -274,11 +280,11 @@ fun cardFour() {
 }
 
 @Composable
-fun cardFive() {
+fun cardFive(onClick:()->Unit) {
     val image = painterResource(R.drawable.people)
     Column(
         modifier = Modifier.border(1.dp, Color.LightGray, shape = RoundedCornerShape(15.dp))
-            .padding(10.dp).fillMaxWidth().height(200.dp)
+            .padding(10.dp).fillMaxWidth().height(200.dp).clickable{onClick()}
     ) {
 
         Image(

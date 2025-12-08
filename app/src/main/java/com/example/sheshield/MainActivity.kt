@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SheShieldTheme {
-                //SheShieldApp()
+               SheShieldApp()
                 //ProfileScreen()
 //                TimedCheckIn(
 //                    onNavigate = { route ->
@@ -46,10 +46,10 @@ class MainActivity : ComponentActivity() {
 //                        println("Navigate to: $route")
 //                    }
 //                )
-                RespondersNearMeScreen()
+              //  RespondersNearMeScreen()
 
 
-             //   Email()
+             //  Email()
             }
         }
     }
@@ -84,7 +84,7 @@ fun SheShieldApp() {
             AppDestinations.CONTACTS -> TrustedContactsScreen(onBack = { currentDestination = AppDestinations.HOME })
             AppDestinations.MAP -> Text("Map Screen") // Replace with your MapScreen
             AppDestinations.AI -> Text("AI Help Screen") // Replace with AIHelpScreen
-            AppDestinations.PROFILE -> ProfileScreen()
+            AppDestinations.PROFILE -> Email()
         }
 
 

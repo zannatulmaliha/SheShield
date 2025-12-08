@@ -284,29 +284,30 @@ fun ProfileScreen(
                         Text("SUPPORT & INFORMATION", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         Support_info()
                         verified_users()
+                        Button(
+                            onClick = onLogout,  // Calls the logout function
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD32F2F),  // Red color
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Logout",
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text("Logout", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
             // LOGOUT BUTTON
-            Button(
-                onClick = onLogout,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD32F2F),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Logout",
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-                Text("Logout", fontWeight = FontWeight.Bold)
-            }
+
         }
 
         SnackbarHost(

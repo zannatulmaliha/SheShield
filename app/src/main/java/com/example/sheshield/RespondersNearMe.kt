@@ -69,7 +69,7 @@ fun RespondersNearMeScreen() {
 @Composable
 fun TopBarResponders() {
     Surface(
-        color = Color(0xFF7831A4),
+        color = Color(0xFF6000E9),
         shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 15.dp, bottomEnd = 15.dp),
         modifier = Modifier.padding(top = 30.dp).fillMaxWidth(1f)
     ) {

@@ -35,7 +35,7 @@ import kotlin.text.isNotEmpty
 import kotlin.text.toIntOrNull
 
 // Define your specific colors to match the design
-val Purple600 = Color(0xFF9333EA)
+val Purple600 = Color(0xFF6000E9)
 val Green600 = Color(0xFF16A34A)
 val Red600 = Color(0xFFDC2626)
 val Orange600 = Color(0xFFEA580C)
@@ -45,7 +45,8 @@ val Gray200 = Color(0xFFE5E7EB)
 
 @Composable
 fun TimedCheckIn(
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onBack:()->Unit
 ) {
     // --- State Management ---
     var isActive by remember { mutableStateOf(false) }
@@ -115,9 +116,10 @@ fun TimedCheckIn(
                         color = Color.White.copy(alpha = 0.9f)
                     )
                 }
-                IconButton(onClick = { onNavigate("dashboard") }) {
+                IconButton(onClick = { onBack() }) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                 }
+
             }
         }
     ) { paddingValues ->

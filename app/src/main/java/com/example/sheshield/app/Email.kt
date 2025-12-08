@@ -104,19 +104,8 @@ fun Email() {
                 }
             }
 
-            // Bottom Navigation Bar (layered on top, at bottom)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-            ) {
-                BottomNavigationBar(
-                    currentScreen = currentScreen,
-                    onNavigate = { screen ->
-                        currentScreen = screen
-                    }
-                )
-            }
+
+
         }
     } else {
         LoginSignupScreen(
