@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
+import com.example.sheshield.SOS.SosButton
+import com.example.sheshield.SOS.SosCountDown
 import com.example.sheshield.TimedCheckIn
 
 
@@ -65,20 +67,41 @@ fun HomeScreen(){
 fun HomeContent(onCardTwoClick: () -> Unit,onCardFiveClick:()->Unit){
 
     val scrollState = rememberScrollState()
-    val img=painterResource(R.drawable.sos6)
+    var showCountdown by remember { mutableStateOf(false) }
+
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.verticalScroll(scrollState).padding(bottom = 35.dp)) {
 
         top_bar()
 
-            Image(
-                painter = img,
-                contentDescription = "sos button",
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally).
-                width(300.dp).height(300.dp)
 
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+
+            if (!showCountdown) {
+                // NORMAL SOS BUTTON
+                SosButton {
+                    showCountdown = true
+                }
+            } else {
+                // COUNTDOWN REPLACES BUTTON
+                SosCountDown(
+                    onFinish = {
+                        showCountdown = false
+                        //  CALL FIREBASE SOS HERE
+                    },
+                    onCancel = {
+                        showCountdown = false
+                    }
+                )
+            }
+        }
+
         Column(modifier = Modifier.padding(25.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

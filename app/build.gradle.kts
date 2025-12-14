@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.androidx.compose.foundation)
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation(libs.androidx.compose.foundation.layout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
