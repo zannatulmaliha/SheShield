@@ -1,6 +1,8 @@
 package com.example.sheshield.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,24 +14,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SupervisorAccount
+import androidx.compose.material.icons.filled.SwitchAccount
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,25 +50,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import androidx.compose.foundation.layout.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginSignupScreen(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onSwitchToHelperMode: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var userType by remember { mutableStateOf("regular") }
+    var userType by remember { mutableStateOf("user") } // user, helper, user_helper
+    var gender by remember { mutableStateOf("") } // female, male
     var isLoading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
     var isLoginMode by remember { mutableStateOf(true) }
 
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
+
+    // Check if user is male - if yes, force helper mode
+    val isMale = gender.lowercase() == "male"
+    LaunchedEffect(gender) {
+        if (isMale && !isLoginMode) {
+            userType = "helper"
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -106,7 +128,7 @@ fun LoginSignupScreen(
             }
         }
 
-        // Form content
+        // Form content - made scrollable
         Surface(
             color = Color.White,
             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -118,8 +140,9 @@ fun LoginSignupScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState()) // Added scroll
                     .padding(horizontal = 24.dp)
-                    .padding(top = 40.dp),
+                    .padding(top = 40.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -169,44 +192,220 @@ fun LoginSignupScreen(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                // User type selection (only for signup)
+                // Gender and User Type selection (only for signup)
                 if (!isLoginMode) {
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Gender Selection
                     Text(
-                        text = "Select User Type",
+                        text = "Gender",
                         color = Color.Gray,
                         fontSize = 14.sp,
                         modifier = Modifier.align(Alignment.Start)
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Only 2 gender options: Female and Male
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            RadioButton(
-                                selected = userType == "regular",
-                                onClick = { userType = "regular" },
-                                colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                                    selectedColor = Color(0xFF6200EE)
+                        GenderOption(
+                            label = "Female",
+                            isSelected = gender == "female",
+                            onClick = {
+                                gender = "female"
+                                // Female can be any type, default to user
+                                if (userType == "helper" && gender == "female") {
+                                    userType = "user"
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        GenderOption(
+                            label = "Male",
+                            isSelected = gender == "male",
+                            onClick = {
+                                gender = "male"
+                                // Male can only be helper
+                                userType = "helper"
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // User Type Selection (only if female)
+                    if (!isMale && gender.isNotEmpty()) {
+                        Text(
+                            text = "Select User Type",
+                            color = Color.Gray,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .align(Alignment.Start)
+                                .padding(bottom = 8.dp)
+                        )
+
+                        // Vertical arrangement with dividers
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    width = 1.dp,
+                                    color = Color.LightGray,
+                                    shape = RoundedCornerShape(12.dp)
                                 )
-                            )
-                            Text("User (Need Help)", fontWeight = FontWeight.Medium)
+                        ) {
+                            Column {
+                                // User (Need Help)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { userType = "user" }
+                                        .padding(vertical = 16.dp, horizontal = 12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    if (userType == "user") Color(0xFF6200EE) else Color.LightGray.copy(alpha = 0.3f),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = "User",
+                                                tint = if (userType == "user") Color.White else Color.Gray,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = "User (Need Help)",
+                                                color = if (userType == "user") Color(0xFF6200EE) else Color.Black,
+                                                fontWeight = if (userType == "user") FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Divider
+                                Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                                // Helper Only
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { userType = "helper" }
+                                        .padding(vertical = 16.dp, horizontal = 12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    if (userType == "helper") Color(0xFF6200EE) else Color.LightGray.copy(alpha = 0.3f),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.SupervisorAccount,
+                                                contentDescription = "Helper",
+                                                tint = if (userType == "helper") Color.White else Color.Gray,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = "Helper Only",
+                                                color = if (userType == "helper") Color(0xFF6200EE) else Color.Black,
+                                                fontWeight = if (userType == "helper") FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Divider
+                                Divider(color = Color.LightGray, thickness = 0.5.dp)
+
+                                // Both
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { userType = "user_helper" }
+                                        .padding(vertical = 16.dp, horizontal = 12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .background(
+                                                    if (userType == "user_helper") Color(0xFF6200EE) else Color.LightGray.copy(alpha = 0.3f),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.SwitchAccount,
+                                                contentDescription = "Both",
+                                                tint = if (userType == "user_helper") Color.White else Color.Gray,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = "Both",
+                                                color = if (userType == "user_helper") Color(0xFF6200EE) else Color.Black,
+                                                fontWeight = if (userType == "user_helper") FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(8.dp)
+                    } else if (isMale && gender.isNotEmpty()) {
+                        // Show message for male users
+                        Surface(
+                            color = Color(0xFFE3F2FD),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            RadioButton(
-                                selected = userType == "helper",
-                                onClick = { userType = "helper" },
-                                colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                                    selectedColor = Color(0xFF6200EE)
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Info,
+                                    contentDescription = "Info",
+                                    tint = Color(0xFF1976D2),
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            )
-                            Text("Helper", fontWeight = FontWeight.Medium)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "As a male user, you can only register as a Helper",
+                                    color = Color(0xFF1976D2),
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -222,8 +421,19 @@ fun LoginSignupScreen(
                 // Main action button
                 Button(
                     onClick = {
+                        // Validation
                         if (email.isEmpty() || password.isEmpty()) {
                             statusMessage = "❌ Please fill all fields"
+                            return@Button
+                        }
+
+                        if (!isLoginMode && gender.isEmpty()) {
+                            statusMessage = "❌ Please select your gender"
+                            return@Button
+                        }
+
+                        if (!isLoginMode && !isMale && userType.isEmpty()) {
+                            statusMessage = "❌ Please select user type"
                             return@Button
                         }
 
@@ -251,9 +461,12 @@ fun LoginSignupScreen(
                                         val userData = hashMapOf(
                                             "email" to email,
                                             "userType" to userType,
+                                            "gender" to gender,
                                             "name" to email.substringBefore("@"),
                                             "phone" to "",  // Empty initially
                                             "address" to "", // Empty initially
+                                            "isHelperVerified" to false,
+                                            "helperLevel" to 0,
                                             "createdAt" to System.currentTimeMillis(),
                                             "updatedAt" to System.currentTimeMillis()
                                         )
@@ -265,6 +478,8 @@ fun LoginSignupScreen(
                                                 statusMessage = "✅ Account created! Please login"
                                                 isLoginMode = true
                                                 password = ""
+                                                gender = ""
+                                                userType = "user"
                                             }
                                             .addOnFailureListener { e ->
                                                 isLoading = false
@@ -302,6 +517,8 @@ fun LoginSignupScreen(
                         isLoginMode = !isLoginMode
                         statusMessage = ""
                         password = ""
+                        gender = ""
+                        userType = "user"
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -344,6 +561,46 @@ fun LoginSignupScreen(
                 ) {
                     Text("Test Firebase Connection")
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun GenderOption(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clickable(onClick = onClick)
+    ) {
+        Surface(
+            color = if (isSelected) Color(0xFF6200EE).copy(alpha = 0.1f) else Color.Transparent,
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = if (isSelected) Color(0xFF6200EE) else Color.LightGray,
+                    shape = RoundedCornerShape(8.dp)
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    color = if (isSelected) Color(0xFF6200EE) else Color.Black,
+                    fontSize = 14.sp
+                )
             }
         }
     }
