@@ -44,12 +44,13 @@ android {
 }
 
 dependencies {
-    // Core AndroidX
+
+    /* -------------------- Core AndroidX -------------------- */
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose (BOM-controlled versions)
+    /* -------------------- Jetpack Compose -------------------- */
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -58,21 +59,29 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Navigation
+    /* -------------------- Navigation -------------------- */
     implementation(libs.androidx.navigation.compose)
 
-    // Firebase - Use regular (non-KTX) versions if KTX is causing issues
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-analytics")
+    /* -------------------- 🔥 Firebase (ONE BOM ONLY) -------------------- */
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
 
-    // OR if you want to use the BOM approach:
-    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
 
-    // Testing
+    /* -------------------- Location -------------------- */
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    /* -------------------- WorkManager -------------------- */
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    /* -------------------- Retrofit -------------------- */
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    /* -------------------- Testing -------------------- */
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
