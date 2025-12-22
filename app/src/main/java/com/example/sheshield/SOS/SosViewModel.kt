@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 enum class SosState {
     IDLE,
@@ -320,25 +323,74 @@ Sent via SheShield
     }
 
     /**
-     * Get current location
+     * Get current location - WITH FALLBACK
      */
     private suspend fun getLocation(context: Context): Location? {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-            Log.w("SosViewModel", "Location permission not granted")
+        // Check both FINE and COARSE location permissions
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFineLocation && !hasCoarseLocation) {
+            Log.w("SosViewModel", "No location permission granted")
             return null
         }
 
         return try {
-            val location = fusedLocationClient?.lastLocation?.await()
+            // First try: Get last known location
+            var location = fusedLocationClient?.lastLocation?.await()
+
             if (location != null) {
-                Log.d("SosViewModel", "Location obtained: ${location.latitude}, ${location.longitude}")
-            } else {
-                Log.w("SosViewModel", "Location is null")
+                Log.d("SosViewModel", "Location obtained from cache: ${location.latitude}, ${location.longitude}")
+                return location
             }
+
+            // Second try: Request fresh location update
+            Log.d("SosViewModel", "Last location was null, requesting fresh location...")
+
+            location = withTimeoutOrNull(5000) {
+                suspendCancellableCoroutine { continuation ->
+                    val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
+                        priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+                        interval = 0
+                        fastestInterval = 0
+                        numUpdates = 1
+                    }
+
+                    val callback = object : com.google.android.gms.location.LocationCallback() {
+                        override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
+                            val freshLocation = result.lastLocation
+                            if (freshLocation != null) {
+                                Log.d("SosViewModel", "Fresh location obtained: ${freshLocation.latitude}, ${freshLocation.longitude}")
+                                continuation.resume(freshLocation)
+                            } else {
+                                continuation.resume(null)
+                            }
+                            fusedLocationClient?.removeLocationUpdates(this)
+                        }
+                    }
+
+                    fusedLocationClient?.requestLocationUpdates(
+                        locationRequest,
+                        callback,
+                        android.os.Looper.getMainLooper()
+                    )
+                }
+            }
+
+            if (location == null) {
+                Log.w("SosViewModel", "Could not get location (GPS may be off or no signal)")
+            }
+
             location
         } catch (e: Exception) {
-            Log.e("SosViewModel", "Location fetch failed", e)
+            Log.e("SosViewModel", "Location fetch failed: ${e.message}", e)
             null
         }
     }

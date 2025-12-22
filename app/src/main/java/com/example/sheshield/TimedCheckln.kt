@@ -110,6 +110,7 @@ fun TimedCheckIn(
             isActive = false
             sosViewModel.sendSosAlert(context)
             onNavigate("sos-active")
+            onBack()
         }
     }
 
@@ -129,9 +130,10 @@ fun TimedCheckIn(
     }
 
     fun handleCheckIn() {
-        isActive = false
-        timeLeft = 0
-        onNavigate("dashboard")
+        fun handleCheckIn() {
+            onBack()
+        }
+
     }
 
     fun formatTime(seconds: Long): String {
@@ -180,7 +182,7 @@ fun TimedCheckIn(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Timed Check-In",
+                        text = "Timed f Check-In",
                         style = MaterialTheme.typography.headlineSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -219,9 +221,9 @@ fun TimedCheckIn(
                     onTogglePause = { isPaused = !isPaused },
                     onCheckIn = { handleCheckIn() },
                     onCancel = {
-                        isActive = false
-                        onNavigate("dashboard")
-                    },
+                        onBack()
+                    }
+                    ,
                     formatTime = { formatTime(it) }
                 )
             }
