@@ -29,8 +29,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 
-// ADD THIS IMPORT:
 import com.example.sheshield.screens.helper.HelperScreen
+
+// ADD THIS IMPORT
+import com.example.sheshield.screens.TrackRouteScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -247,7 +249,7 @@ fun UserModeApp(
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) }
                 )
-                AppDestinations.MAP -> Text("Map Screen")
+                AppDestinations.MAP -> TrackRouteScreen() // Updated Line
                 AppDestinations.AI -> Text("AI Help Screen")
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
