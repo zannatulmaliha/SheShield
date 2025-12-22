@@ -1,0 +1,80 @@
+[debug] [2025-12-19T17:20:35.105Z] ----------------------------------------------------------------------
+[debug] [2025-12-19T17:20:35.115Z] Command:       D:\firebase-tools-instant-win.exe C:\Users\zannatul\.cache\firebase\tools\lib\node_modules\firebase-tools\lib\bin\firebase init functions
+[debug] [2025-12-19T17:20:35.115Z] CLI Version:   15.0.0
+[debug] [2025-12-19T17:20:35.115Z] Platform:      win32
+[debug] [2025-12-19T17:20:35.115Z] Node Version:  v20.18.2
+[debug] [2025-12-19T17:20:35.115Z] Time:          Fri Dec 19 2025 23:20:35 GMT+0600 (Bangladesh Standard Time)
+[debug] [2025-12-19T17:20:35.115Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-19T17:20:35.117Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  D:\SheShield2
+
+[debug] [2025-12-19T17:20:56.945Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-12-19T17:20:56.945Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2025-12-19T17:21:00.741Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-19T17:21:00.741Z] > authorizing via signed-in user (zannatulferdousmaliha6@gmail.com)
+[debug] [2025-12-19T17:21:00.742Z] Checked if tokens are valid: false, expires at: 1765906290962
+[debug] [2025-12-19T17:21:00.742Z] Checked if tokens are valid: false, expires at: 1765906290962
+[debug] [2025-12-19T17:21:00.742Z] > refreshing access token with scopes: []
+[debug] [2025-12-19T17:21:00.743Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-12-19T17:21:00.743Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-19T17:21:00.927Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-12-19T17:21:00.927Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-19T17:21:00.941Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/friendlyeats-f8e33 [none]
+[debug] [2025-12-19T17:21:01.431Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/friendlyeats-f8e33 200
+[debug] [2025-12-19T17:21:01.431Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/friendlyeats-f8e33 {"projectId":"friendlyeats-f8e33","projectNumber":"758291684594","displayName":"FriendlyEats","name":"projects/friendlyeats-f8e33","resources":{"hostingSite":"friendlyeats-f8e33"},"state":"ACTIVE","etag":"1_35cf42ce-1ffc-4ee3-bcc6-206814c950ad"}
+[info] i  Using project friendlyeats-f8e33 (FriendlyEats) . 
+[info] 
+=== Functions Setup
+[debug] [2025-12-19T17:21:01.446Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-19T17:21:01.446Z] > authorizing via signed-in user (zannatulferdousmaliha6@gmail.com)
+[debug] [2025-12-19T17:21:01.446Z] [iam] checking project friendlyeats-f8e33 for permissions ["firebase.projects.get"]
+[debug] [2025-12-19T17:21:01.446Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:01.446Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:01.447Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/friendlyeats-f8e33:testIamPermissions [none]
+[debug] [2025-12-19T17:21:01.447Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/friendlyeats-f8e33:testIamPermissions x-goog-quota-user=projects/friendlyeats-f8e33
+[debug] [2025-12-19T17:21:01.447Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/friendlyeats-f8e33:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-12-19T17:21:02.812Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/friendlyeats-f8e33:testIamPermissions 200
+[debug] [2025-12-19T17:21:02.812Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/friendlyeats-f8e33:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-12-19T17:21:02.812Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:02.812Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:02.813Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:02.813Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:02.813Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com [none]
+[debug] [2025-12-19T17:21:02.813Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com x-goog-quota-user=projects/friendlyeats-f8e33
+[debug] [2025-12-19T17:21:02.814Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/runtimeconfig.googleapis.com [none]
+[debug] [2025-12-19T17:21:02.814Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/runtimeconfig.googleapis.com x-goog-quota-user=projects/friendlyeats-f8e33
+[debug] [2025-12-19T17:21:04.528Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/runtimeconfig.googleapis.com 200
+[debug] [2025-12-19T17:21:04.528Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/runtimeconfig.googleapis.com [omitted]
+[debug] [2025-12-19T17:21:04.555Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com 200
+[debug] [2025-12-19T17:21:04.556Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com [omitted]
+[debug] [2025-12-19T17:21:04.556Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:04.556Z] Checked if tokens are valid: true, expires at: 1766168459927
+[debug] [2025-12-19T17:21:04.556Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com:enable [none]
+[debug] [2025-12-19T17:21:04.556Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com:enable x-goog-quota-user=projects/friendlyeats-f8e33
+[debug] [2025-12-19T17:21:06.266Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com:enable 200
+[debug] [2025-12-19T17:21:06.267Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/friendlyeats-f8e33/services/cloudfunctions.googleapis.com:enable [omitted]
+[info] Let's create a new codebase for your functions.
+[info] A directory corresponding to the codebase will be created in your project
+[info] with sample code pre-configured.
+
+[info] See https://firebase.google.com/docs/functions/organize-functions for
+[info] more information on organizing your functions using codebases.
+
+[info] Functions can be deployed with firebase deploy.
+
