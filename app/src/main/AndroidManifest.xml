@@ -2,23 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- SMS -->
     <uses-permission android:name="android.permission.SEND_SMS" />
 
-    <!-- Phone Call -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
-    <!-- Notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Queries for Android 11+ -->
     <queries>
         <intent>
             <action android:name="android.intent.action.CALL" />
@@ -31,7 +27,6 @@
     </queries>
 
     <application
-
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -41,12 +36,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SheShield">
 
-        <!-- Firebase / Google Play Services -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAtw-LnDAamCQ-ZKy2fkG6g7BwDnenviIQ" />
+
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -58,7 +55,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Cloud Messaging Service -->
         <service
             android:name=".notifications.FCMService"
             android:exported="false">

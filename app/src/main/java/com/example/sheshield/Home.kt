@@ -2,8 +2,6 @@ package com.example.sheshield
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.widget.Toast
-import com.example.sheshield.ui.screens.TimedCheckIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -29,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.*
+import com.example.sheshield.screens.TrackRouteScreen // Import the new screen
 import com.example.sheshield.SOS.SosViewModel
 import com.google.android.gms.location.LocationServices
 
@@ -39,6 +38,7 @@ fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
     when (currentScreen) {
         "home" -> HomeContent(
             sosViewModel = sosViewModel,
+            onCardOneClick = { currentScreen = "trackRoute" }, // Add this
             onCardTwoClick = { currentScreen = "timedCheckIn" },
             onCardFiveClick = { currentScreen = "responders" }
         )
@@ -48,12 +48,16 @@ fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
 
         )
         "responders" -> RespondersNearMeScreen()
+        "trackRoute" -> TrackRouteScreen( // Add this state
+            onBack = { currentScreen = "home" }
+        )
     }
 }
 
 @Composable
 fun HomeContent(
     sosViewModel: SosViewModel,
+    onCardOneClick: () -> Unit, // Add param
     onCardTwoClick: () -> Unit,
     onCardFiveClick: () -> Unit
 ) {
@@ -229,8 +233,6 @@ fun HomeContent(
             }
         }
 
-
-
         Column(
             modifier = Modifier.padding(25.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -244,7 +246,7 @@ fun HomeContent(
                     verticalArrangement = Arrangement.spacedBy(15.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    cardOne()
+                    cardOne(onClick = { onCardOneClick() }) // Pass click listener
                     cardThree()
                 }
                 Column(
@@ -371,7 +373,7 @@ fun top_bar() {
 }
 
 @Composable
-fun cardOne() {
+fun cardOne(onClick: () -> Unit) { // Added onClick parameter
     val image = painterResource(R.drawable.loc)
     Column(
         modifier = Modifier
@@ -379,6 +381,7 @@ fun cardOne() {
             .padding(10.dp)
             .fillMaxWidth()
             .height(150.dp)
+            .clickable { onClick() } // Make clickable
     ) {
         Image(
             painter = image,

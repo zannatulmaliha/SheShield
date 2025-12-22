@@ -71,8 +71,10 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")
 
-    /* -------------------- Location -------------------- */
+    /* -------------------- Location & Maps -------------------- */
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation(libs.maps.compose) // Google Maps Compose
+    implementation(libs.play.services.maps) // Google Maps SDK
 
     /* -------------------- WorkManager -------------------- */
     implementation("androidx.work:work-runtime-ktx:2.9.0")
