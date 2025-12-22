@@ -28,6 +28,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.*
 import com.example.sheshield.screens.TrackRouteScreen // Import the new screen
+import com.example.sheshield.SOS.SosViewModel
+import com.google.android.gms.location.LocationServices
 
 @Composable
 fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
@@ -43,6 +45,7 @@ fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
         "timedCheckIn" -> TimedCheckIn(
             onNavigate = { currentScreen = it },
             onBack = { currentScreen = "home" }
+
         )
         "responders" -> RespondersNearMeScreen()
         "trackRoute" -> TrackRouteScreen( // Add this state
