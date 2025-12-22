@@ -130,10 +130,7 @@ fun TimedCheckIn(
     }
 
     fun handleCheckIn() {
-        fun handleCheckIn() {
-            onBack()
-        }
-
+        onBack()
     }
 
     fun formatTime(seconds: Long): String {
@@ -155,7 +152,6 @@ fun TimedCheckIn(
             .focusable()
             .onKeyEvent { event ->
                 if (isActive && event.type == KeyEventType.KeyDown) {
-                    // FIX: Use full android.view.KeyEvent path here to avoid conflict
                     when (event.nativeKeyEvent.keyCode) {
                         android.view.KeyEvent.KEYCODE_VOLUME_UP -> {
                             timeLeft += 60
@@ -182,7 +178,7 @@ fun TimedCheckIn(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Timed f Check-In",
+                        text = "Timed Check-In",
                         style = MaterialTheme.typography.headlineSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -193,7 +189,7 @@ fun TimedCheckIn(
                         color = Color.White.copy(alpha = 0.9f)
                     )
                 }
-                IconButton(onClick = { onNavigate("dashboard") }) {
+                IconButton(onClick = { onBack() }) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                 }
             }
@@ -220,10 +216,7 @@ fun TimedCheckIn(
                     isPaused = isPaused,
                     onTogglePause = { isPaused = !isPaused },
                     onCheckIn = { handleCheckIn() },
-                    onCancel = {
-                        onBack()
-                    }
-                    ,
+                    onCancel = { onBack() },
                     formatTime = { formatTime(it) }
                 )
             }
