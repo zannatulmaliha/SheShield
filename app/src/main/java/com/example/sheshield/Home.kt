@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.*
 import com.example.sheshield.screens.TrackRouteScreen // Import the new screen
 import com.example.sheshield.SOS.SosViewModel
+import com.example.sheshield.ui.screens.TimedCheckIn
 import com.google.android.gms.location.LocationServices
 
 @Composable
