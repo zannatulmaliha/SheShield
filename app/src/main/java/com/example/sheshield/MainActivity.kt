@@ -30,8 +30,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 
 import com.example.sheshield.screens.helper.HelperScreen
-
-// ADD THIS IMPORT
 import com.example.sheshield.screens.TrackRouteScreen
 
 class MainActivity : ComponentActivity() {
@@ -129,7 +127,6 @@ fun SheShieldApp() {
                 currentDestination = AppDestinations.HOME
             },
             onSwitchToHelperMode = {
-                // This is for users who want to register as helpers from login
                 // Not needed here, handled by userType selection
             }
         )
@@ -138,9 +135,9 @@ fun SheShieldApp() {
         // Determine what to show based on user type
         when (userData?.userType) {
             "helper" -> {
-                // Helper only - always show helper mode
+                // Helper only
                 HelperModeApp(
-                    onSwitchToUserMode = null, // No switching for helper-only users
+                    onSwitchToUserMode = null,
                     onLogout = {
                         auth.signOut()
                         isLoggedIn = false
@@ -150,7 +147,7 @@ fun SheShieldApp() {
                 )
             }
             "user" -> {
-                // User only - always show user mode
+                // User only
                 UserModeApp(
                     currentDestination = currentDestination,
                     onDestinationChange = { currentDestination = it },
@@ -159,7 +156,7 @@ fun SheShieldApp() {
                         isLoggedIn = false
                         userData = null
                     },
-                    showSwitchToHelper = false // User-only can't switch
+                    showSwitchToHelper = false
                 )
             }
             "user_helper" -> {
@@ -205,7 +202,6 @@ fun SheShieldApp() {
     }
 }
 
-// Updated UserModeApp with optional switch button
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserModeApp(
@@ -249,7 +245,7 @@ fun UserModeApp(
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) }
                 )
-                AppDestinations.MAP -> TrackRouteScreen() // Updated Line
+                AppDestinations.MAP -> TrackRouteScreen()
                 AppDestinations.AI -> Text("AI Help Screen")
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
@@ -260,7 +256,6 @@ fun UserModeApp(
     }
 }
 
-// Updated HelperModeApp - FIXED syntax errors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelperModeApp(
@@ -303,37 +298,38 @@ fun HelperModeApp(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF1976D2) // Blue for helper mode
+                    containerColor = Color(0xFF1976D2)
                 )
             )
         },
         bottomBar = {
             NavigationBar {
                 HelperScreen.entries.forEach { screen ->
+                    // FIX: Define the icon here to avoid type errors
+                    val iconVector = when(screen) {
+                        HelperScreen.DASHBOARD -> Icons.Default.Dashboard
+                        HelperScreen.ALERTS -> Icons.Default.Notifications
+                        HelperScreen.PROFILE -> Icons.Default.Person
+                        HelperScreen.SUPPORT -> Icons.Default.Help
+                        HelperScreen.HISTORY -> Icons.Default.History // Added History Icon
+                        else -> Icons.Default.Info
+                    }
+
+                    // FIX: Define the label here
+                    val labelText = when(screen) {
+                        HelperScreen.DASHBOARD -> "Dashboard"
+                        HelperScreen.ALERTS -> "Alerts"
+                        HelperScreen.PROFILE -> "Profile"
+                        HelperScreen.SUPPORT -> "Help"
+                        HelperScreen.HISTORY -> "History" // Added History Label
+                        else -> "Screen"
+                    }
+
                     NavigationBarItem(
                         selected = currentScreen == screen,
                         onClick = { currentScreen = screen },
-                        icon = {
-                            Icon(
-                                when(screen) {
-                                    HelperScreen.DASHBOARD -> Icons.Default.Dashboard
-                                    HelperScreen.ALERTS -> Icons.Default.Notifications
-                                    HelperScreen.PROFILE -> Icons.Default.Person
-                                    HelperScreen.SUPPORT -> Icons.Default.Help
-                                },
-                                screen.name
-                            )
-                        },
-                        label = {
-                            Text(
-                                when(screen) {
-                                    HelperScreen.DASHBOARD -> "Dashboard"
-                                    HelperScreen.ALERTS -> "Alerts"
-                                    HelperScreen.PROFILE -> "Profile"
-                                    HelperScreen.SUPPORT -> "Help"
-                                }
-                            )
-                        }
+                        icon = { Icon(iconVector, screen.name) },
+                        label = { Text(labelText) }
                     )
                 }
             }
@@ -357,6 +353,22 @@ fun HelperModeApp(
                     userData = userData
                 )
                 HelperScreen.SUPPORT -> Text("Helper Support Screen")
+
+                // FIX: Added the missing HISTORY case
+                HelperScreen.HISTORY -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.History, "History", modifier = Modifier.size(64.dp), tint = Color.Gray)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("History Screen Coming Soon", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Fallback for any other future screens
+                else -> { Text("Screen not implemented yet") }
             }
         }
     }
