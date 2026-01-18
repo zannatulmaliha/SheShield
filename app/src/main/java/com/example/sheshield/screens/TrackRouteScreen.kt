@@ -31,24 +31,18 @@ import com.google.maps.android.compose.*
 @Composable
 fun TrackRouteScreen(
     onBack: (() -> Unit)? = null,
-    viewModel: TrackRouteViewModel = viewModel() // Inject the new ViewModel
+    viewModel: TrackRouteViewModel = viewModel()
 ) {
     val context = LocalContext.current
-
-    // Default location
     val defaultLocation = LatLng(23.8103, 90.4125)
 
-    // State
     var isMapLoaded by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     val isLoading by viewModel.loadingState.collectAsState()
 
     var hasLocationPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -58,12 +52,9 @@ fun TrackRouteScreen(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted: Boolean ->
-            hasLocationPermission = isGranted
-        }
+        onResult = { hasLocationPermission = it }
     )
 
-    // Get Location
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             try {
@@ -76,9 +67,7 @@ fun TrackRouteScreen(
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(userLatLng, 15f)
                         }
                     }
-            } catch (e: SecurityException) {
-                // Handle exception
-            }
+            } catch (e: SecurityException) {}
         } else {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -90,15 +79,12 @@ fun TrackRouteScreen(
                 TopAppBar(
                     title = { Text("Track My Route") },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                        }
+                        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color(0xFF6000E9),
                         titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White
+                        navigationIconContentColor = Color.White
                     )
                 )
             }
@@ -108,44 +94,33 @@ fun TrackRouteScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // --- NEW SHORTCUT BUTTON ---
+                // Quick Notify Button
                 SmallFloatingActionButton(
                     onClick = {
-                        if (currentLocation != null) {
-                            // Call the ViewModel to send SMS to all contacts
-                            viewModel.notifyContacts(context, currentLocation)
-                        } else {
-                            Toast.makeText(context, "Locating...", Toast.LENGTH_SHORT).show()
-                        }
+                        if (currentLocation != null) viewModel.notifyContacts(context, currentLocation)
+                        else Toast.makeText(context, "Locating...", Toast.LENGTH_SHORT).show()
                     },
-                    containerColor = Color(0xFF03DAC5), // Teal color for distinction
-                    contentColor = Color.Black
+                    containerColor = Color(0xFF03DAC5)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.Send, "Quick Notify Contacts")
-                    }
+                    if (isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    else Icon(Icons.Default.Send, "Notify")
                 }
 
-                // --- EXISTING SHARE BUTTON ---
+                // Share Button
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (currentLocation != null) {
                             val mapLink = "http://maps.google.com/?q=${currentLocation!!.latitude},${currentLocation!!.longitude}"
-
                             val shareIntent = Intent().apply {
                                 action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, "I'm sharing my live route securely via SheShield. Track me here: $mapLink")
+                                putExtra(Intent.EXTRA_TEXT, "I'm sharing my live route: $mapLink")
                                 type = "text/plain"
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Location via"))
-                        } else {
-                            Toast.makeText(context, "Fetching location...", Toast.LENGTH_SHORT).show()
+                            context.startActivity(Intent.createChooser(shareIntent, "Share Location"))
                         }
                     },
                     icon = { Icon(Icons.Default.Share, "Share") },
-                    text = { Text("Share Live Location") },
+                    text = { Text("Share Location") },
                     containerColor = Color(0xFF6000E9),
                     contentColor = Color.White
                 )
@@ -157,39 +132,12 @@ fun TrackRouteScreen(
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
-                    properties = MapProperties(
-                        isMyLocationEnabled = true,
-                        mapType = MapType.NORMAL
-                    ),
-                    uiSettings = MapUiSettings(
-                        zoomControlsEnabled = false,
-                        myLocationButtonEnabled = true
-                    ),
+                    properties = MapProperties(isMyLocationEnabled = true),
+                    uiSettings = MapUiSettings(zoomControlsEnabled = false),
                     onMapLoaded = { isMapLoaded = true }
                 )
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("Location permission is required to track route.")
-                    Button(
-                        onClick = { permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
-                        modifier = Modifier.padding(top = 16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6000E9))
-                    ) {
-                        Text("Grant Permission")
-                    }
-                }
             }
-
-            if (!isMapLoaded && hasLocationPermission) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFF6000E9)
-                )
-            }
+            if (!isMapLoaded && hasLocationPermission) CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
     }
 }

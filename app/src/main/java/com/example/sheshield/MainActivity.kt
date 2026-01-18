@@ -245,7 +245,7 @@ fun UserModeApp(
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) }
                 )
-                AppDestinations.MAP -> TrackRouteScreen()
+                AppDestinations.MAP -> GeneralMapScreen()
                 AppDestinations.AI -> Text("AI Help Screen")
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
