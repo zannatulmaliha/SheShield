@@ -10,9 +10,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -22,35 +25,61 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sheshield.screens.*
+import com.example.sheshield.screens.TrackRouteScreen
 import com.example.sheshield.SOS.*
-import com.example.sheshield.screens.TrackRouteScreen // Import the new screen
 import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.ui.screens.TimedCheckIn
+import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.android.gms.location.LocationServices
 
 @Composable
-fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
+fun HomeScreen(
+    movementViewModel: MovementViewModel,
+    sosViewModel: SosViewModel = viewModel(),
+    onCardOneClick: () -> Unit,
+    onCardTwoClick: () -> Unit,
+    onCardFiveClick: () -> Unit,
+    onMovementScreenClick: () -> Unit
+) {
     var currentScreen by remember { mutableStateOf("home") }
+    var showMovementScreen by remember { mutableStateOf(false) }
+
+    // Collect movement state
+    val movementState by movementViewModel.movementState.collectAsState()
 
     when (currentScreen) {
         "home" -> HomeContent(
             sosViewModel = sosViewModel,
-            onCardOneClick = { currentScreen = "trackRoute" }, // Add this
-            onCardTwoClick = { currentScreen = "timedCheckIn" },
-            onCardFiveClick = { currentScreen = "responders" }
+            movementViewModel = movementViewModel,
+            onCardOneClick = { onCardOneClick() },
+            onCardTwoClick = { onCardTwoClick() },
+            onCardFiveClick = { onCardFiveClick() },
+            onMovementScreenClick = { showMovementScreen = true }
         )
         "timedCheckIn" -> TimedCheckIn(
             onNavigate = { currentScreen = it },
             onBack = { currentScreen = "home" }
-
         )
         "responders" -> RespondersNearMeScreen()
-        "trackRoute" -> TrackRouteScreen( // Add this state
+        "trackRoute" -> TrackRouteScreen(
             onBack = { currentScreen = "home" }
+        )
+    }
+
+    // Movement Detection Screen Overlay
+    if (showMovementScreen) {
+        MovementDetectionScreen(
+            onBack = { showMovementScreen = false },
+            onAbnormalMovementDetected = { type, confidence ->
+                println("🚨 Abnormal movement detected: $type ($confidence)")
+            }
         )
     }
 }
@@ -58,13 +87,16 @@ fun HomeScreen(sosViewModel: SosViewModel = viewModel()) {
 @Composable
 fun HomeContent(
     sosViewModel: SosViewModel,
-    onCardOneClick: () -> Unit, // Add param
+    movementViewModel: MovementViewModel,
+    onCardOneClick: () -> Unit,
     onCardTwoClick: () -> Unit,
-    onCardFiveClick: () -> Unit
+    onCardFiveClick: () -> Unit,
+    onMovementScreenClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val sosState by sosViewModel.sosState.collectAsState()
     val alertMessage by sosViewModel.alertMessage.collectAsState()
+    val movementState by movementViewModel.movementState.collectAsState()
     val context = LocalContext.current
 
     // Initialize location client
@@ -72,7 +104,7 @@ fun HomeContent(
         sosViewModel.initLocationClient(context)
     }
 
-    // Permission launcher - requests all permissions at once
+    // Permission launcher
     var permissionsGranted by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -82,10 +114,8 @@ fun HomeContent(
         permissionsGranted = allGranted
 
         if (allGranted) {
-            // Permissions granted, send SOS immediately
             sosViewModel.sendSosAlert(context)
         } else {
-            // Show error message
             sosViewModel.setErrorMessage("⚠️ Permissions required to send SOS alert")
         }
     }
@@ -93,7 +123,6 @@ fun HomeContent(
     // Check permissions when countdown finishes
     LaunchedEffect(sosState) {
         if (sosState == SosState.SENT) {
-            // Countdown finished, check permissions and send
             val hasSmsPermission = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.SEND_SMS
@@ -105,10 +134,8 @@ fun HomeContent(
             ) == PackageManager.PERMISSION_GRANTED
 
             if (hasSmsPermission && hasLocationPermission) {
-                // All permissions granted, send SOS
                 sosViewModel.sendSosAlert(context)
             } else {
-                // Request permissions
                 permissionLauncher.launch(
                     arrayOf(
                         Manifest.permission.SEND_SMS,
@@ -154,6 +181,64 @@ fun HomeContent(
             }
         }
 
+        // Movement Monitoring Status
+        if (movementState.isActive) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 25.dp, vertical = 10.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFE8F5E9)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                onClick = onMovementScreenClick
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.DirectionsRun,
+                        contentDescription = "Monitoring Active",
+                        tint = Color(0xFF2E7D32),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Movement Detection Active",
+                            color = Color(0xFF2E7D32),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            "Status preserved across navigation",
+                            fontSize = 12.sp,
+                            color = Color(0xFF2E7D32).copy(alpha = 0.7f)
+                        )
+                        if (movementState.lastMovementType.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Last: ${movementState.lastMovementType}",
+                                fontSize = 12.sp,
+                                color = Color(0xFFF57C00),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "View Details",
+                        tint = Color(0xFF2E7D32)
+                    )
+                }
+            }
+        }
+
+        // SOS Button Section
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,8 +255,7 @@ fun HomeContent(
                 SosState.COUNTDOWN -> {
                     SosCountDown(
                         onFinish = {
-                            // This is called by the countdown component
-                            // The LaunchedEffect above will handle sending
+                            // Will be handled by LaunchedEffect
                         },
                         onCancel = {
                             sosViewModel.cancelSos()
@@ -180,7 +264,6 @@ fun HomeContent(
                 }
 
                 SosState.SENDING -> {
-                    // Show sending indicator
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3)),
                         modifier = Modifier.padding(horizontal = 25.dp)
@@ -206,7 +289,6 @@ fun HomeContent(
                 }
 
                 SosState.SENT_SUCCESS -> {
-                    // Show success message (auto-dismissed by ViewModel)
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
                         modifier = Modifier.padding(horizontal = 25.dp)
@@ -234,6 +316,7 @@ fun HomeContent(
             }
         }
 
+        // Quick Action Cards
         Column(
             modifier = Modifier.padding(25.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -247,23 +330,73 @@ fun HomeContent(
                     verticalArrangement = Arrangement.spacedBy(15.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    cardOne(onClick = { onCardOneClick() }) // Pass click listener
+                    cardOne(onClick = onCardOneClick)
                     cardThree()
                 }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(15.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    cardTwo(onClick = { onCardTwoClick() })
+                    cardTwo(onClick = onCardTwoClick)
                     cardFour()
                 }
             }
+
             Box(
                 modifier = Modifier
                     .padding(horizontal = 75.dp)
                     .height(170.dp)
             ) {
-                cardFive(onClick = { onCardFiveClick() })
+                cardFive(onClick = onCardFiveClick)
+            }
+
+            // Movement Detection Button
+            Button(
+                onClick = onMovementScreenClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (movementState.isActive)
+                        Color(0xFF2E7D32)
+                    else
+                        Color(0xFF6200EE)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.DirectionsRun,
+                    "Movement Detection",
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        if (movementState.isActive)
+                            "Monitoring Active"
+                        else
+                            "Movement Detection",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        if (movementState.isActive)
+                            "Tap to view details & history"
+                        else
+                            "Monitor abnormal movements",
+                        fontSize = 12.sp
+                    )
+                }
+                if (movementState.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Color.Red, CircleShape)
+                    )
+                }
             }
 
             safe_box()
@@ -374,7 +507,7 @@ fun top_bar() {
 }
 
 @Composable
-fun cardOne(onClick: () -> Unit) { // Added onClick parameter
+fun cardOne(onClick: () -> Unit) {
     val image = painterResource(R.drawable.loc)
     Column(
         modifier = Modifier
@@ -382,7 +515,7 @@ fun cardOne(onClick: () -> Unit) { // Added onClick parameter
             .padding(10.dp)
             .fillMaxWidth()
             .height(150.dp)
-            .clickable { onClick() } // Make clickable
+            .clickable { onClick() }
     ) {
         Image(
             painter = image,
