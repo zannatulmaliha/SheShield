@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
 // Kept tracking logic so the map feature still works
-import com.example.sheshield.screens.helper.HelperTrackingLogic
+//import com.example.sheshield.screens.helper.HelperTrackingLogic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -366,7 +366,7 @@ fun HelperDashboard(
                 confirmButton = {
                     Button(
                         onClick = {
-                            HelperTrackingLogic.startNavigationToUser(context, alert)
+                            //HelperTrackingLogic.startNavigationToUser(context, alert)
                             onAcceptAlert(alert)
                             selectedAlert = null
                         },
@@ -440,7 +440,7 @@ fun NearbyAlertItem(alert: Alert, onAccept: () -> Unit) {
             Button(
                 onClick = {
                     // Call your tracking logic here!
-                    HelperTrackingLogic.startNavigationToUser(context, alert)
+                    //HelperTrackingLogic.startNavigationToUser(context, alert)
                     onAccept()
                 },
                 modifier = Modifier.padding(start = 8.dp),
@@ -462,8 +462,4 @@ fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
         }
         Text(label, fontSize = 12.sp)
     }
-}
-
-enum class HelperScreen {
-    DASHBOARD, ALERTS, PROFILE, SUPPORT, HISTORY
 }

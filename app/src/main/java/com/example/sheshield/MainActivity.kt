@@ -1,6 +1,7 @@
 package com.example.sheshield
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,6 +31,8 @@ import com.example.sheshield.screens.*
 import com.example.sheshield.screens.helper.HelperScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
+import com.example.sheshield.screens.helper.HelperAlertsScreen // Make sure this is imported
+import com.example.sheshield.screens.helper.HelperScreen // Make sure this is imported
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -99,18 +102,13 @@ fun SheShieldApp() {
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
                         userData = document.toObject(UserData::class.java)
-
-                        // Ensure userId is set
                         userData = userData?.copy(userId = currentUser.uid)
 
                         // Set default mode based on user type
                         when (userData?.userType) {
                             "helper" -> appMode = AppMode.HELPER
                             "user" -> appMode = AppMode.USER
-                            "user_helper" -> {
-                                // Start in user mode, can switch to helper
-                                appMode = AppMode.USER
-                            }
+                            "user_helper" -> appMode = AppMode.USER // Default to user, can switch
                             else -> appMode = AppMode.USER
                         }
                     }
@@ -138,16 +136,13 @@ fun SheShieldApp() {
                 isLoggedIn = true
                 currentDestination = AppDestinations.HOME
             },
-            onSwitchToHelperMode = {
-                // Not needed here, handled by userType selection
-            }
+            onSwitchToHelperMode = {}
         )
     }
     else if (isLoggedIn == true) {
         // Determine what to show based on user type
         when (userData?.userType) {
             "helper" -> {
-                // Helper only
                 HelperModeApp(
                     onSwitchToUserMode = null,
                     onLogout = {
@@ -160,15 +155,19 @@ fun SheShieldApp() {
                 )
             }
             "user" -> {
-                // User only - check if showing movement screen or normal app
-                if (showMovementScreen) {
-                    MovementDetectionScreen(
-                        onBack = { showMovementScreen = false },
-                        onAbnormalMovementDetected = { type, confidence ->
-                            println("🚨 Abnormal movement detected: $type ($confidence)")
-                        }
-                    )
-                } else {
+                UserModeApp(
+                    currentDestination = currentDestination,
+                    onDestinationChange = { currentDestination = it },
+                    onLogout = {
+                        auth.signOut()
+                        isLoggedIn = false
+                        userData = null
+                    },
+                    showSwitchToHelper = false
+                )
+            }
+            "user_helper" -> {
+                if (appMode == AppMode.USER) {
                     UserModeApp(
                         currentDestination = currentDestination,
                         onDestinationChange = { currentDestination = it },
@@ -227,29 +226,16 @@ fun SheShieldApp() {
                 }
             }
             else -> {
-                // Default fallback
-                if (showMovementScreen) {
-                    MovementDetectionScreen(
-                        onBack = { showMovementScreen = false },
-                        onAbnormalMovementDetected = { type, confidence ->
-                            println("🚨 Abnormal movement detected: $type ($confidence)")
-                        }
-                    )
-                } else {
-                    UserModeApp(
-                        currentDestination = currentDestination,
-                        onDestinationChange = { currentDestination = it },
-                        onLogout = {
-                            auth.signOut()
-                            isLoggedIn = false
-                            userData = null
-                            movementViewModel.stopMonitoring()
-                        },
-                        showSwitchToHelper = false,
-                        movementViewModel = movementViewModel,
-                        onMovementScreenClick = { showMovementScreen = true }
-                    )
-                }
+                UserModeApp(
+                    currentDestination = currentDestination,
+                    onDestinationChange = { currentDestination = it },
+                    onLogout = {
+                        auth.signOut()
+                        isLoggedIn = false
+                        userData = null
+                    },
+                    showSwitchToHelper = false
+                )
             }
         }
     }
@@ -311,8 +297,8 @@ fun UserModeApp(
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) }
                 )
-                AppDestinations.MAP -> GeneralMapScreen()
-                AppDestinations.AI -> Text("AI Help Screen")
+                AppDestinations.MAP -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Map Screen") }
+                AppDestinations.AI -> Box(Modifier.fillMaxSize(), Alignment.Center) { Text("AI Help Screen") }
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
                     onLogout = onLogout
@@ -329,6 +315,8 @@ fun HelperModeApp(
     onLogout: () -> Unit,
     userData: UserData?
 ) {
+    val context = LocalContext.current
+    // Default start screen
     var currentScreen by rememberSaveable { mutableStateOf(HelperScreen.DASHBOARD) }
 
     Scaffold(
@@ -336,17 +324,17 @@ fun HelperModeApp(
             CenterAlignedTopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Helper Mode")
+                        Text("Helper Mode", color = Color.White, fontWeight = FontWeight.Bold)
                         if (userData?.gender == "male") {
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xFF1976D2), RoundedCornerShape(4.dp))
+                                    .background(Color.White, RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     "MALE HELPER",
-                                    color = Color.White,
+                                    color = Color(0xFF1976D2),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -356,10 +344,8 @@ fun HelperModeApp(
                 },
                 actions = {
                     if (onSwitchToUserMode != null) {
-                        IconButton(
-                            onClick = onSwitchToUserMode
-                        ) {
-                            Icon(Icons.Default.SwitchAccount, "Switch to User Mode")
+                        IconButton(onClick = onSwitchToUserMode) {
+                            Icon(Icons.Default.SwitchAccount, "Switch to User Mode", tint = Color.White)
                         }
                     }
                 },
@@ -392,39 +378,66 @@ fun HelperModeApp(
                     NavigationBarItem(
                         selected = currentScreen == screen,
                         onClick = { currentScreen = screen },
-                        icon = { Icon(iconVector, screen.name) },
-                        label = { Text(labelText) }
+                        icon = {
+                            // FIXED: Added HISTORY case to be exhaustive
+                            Icon(
+                                when(screen) {
+                                    HelperScreen.DASHBOARD -> Icons.Default.Dashboard
+                                    HelperScreen.ALERTS -> Icons.Default.Notifications
+                                    HelperScreen.PROFILE -> Icons.Default.Person
+                                    HelperScreen.SUPPORT -> Icons.Default.Help
+                                    HelperScreen.HISTORY -> Icons.Default.History
+                                },
+                                screen.name
+                            )
+                        },
+                        label = {
+                            // FIXED: Added HISTORY case to be exhaustive
+                            Text(
+                                when(screen) {
+                                    HelperScreen.DASHBOARD -> "Dashboard"
+                                    HelperScreen.ALERTS -> "Alerts"
+                                    HelperScreen.PROFILE -> "Profile"
+                                    HelperScreen.SUPPORT -> "Help"
+                                    HelperScreen.HISTORY -> "History"
+                                }
+                            )
+                        }
                     )
                 }
             }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            // FIXED: Added HISTORY case to be exhaustive
             when (currentScreen) {
                 HelperScreen.DASHBOARD -> HelperDashboard(
-                    onNavigate = { currentScreen = it },
+                    onNavigate = { screen: HelperScreen ->
+                        currentScreen = screen
+                    },
                     onSwitchToUserMode = onSwitchToUserMode,
                     onAcceptAlert = { alert ->
-                        println("Alert accepted: ${alert.id}")
+                        Toast.makeText(context, "Accepted alert: ${alert.userName}", Toast.LENGTH_SHORT).show()
                         currentScreen = HelperScreen.ALERTS
                     },
                     userData = userData
                 )
-                HelperScreen.ALERTS -> Text("Helper Alert Screen")
+                HelperScreen.ALERTS -> HelperAlertsScreen(
+                    onBack = { currentScreen = HelperScreen.DASHBOARD },
+                    onNavigateToMap = {
+                        Toast.makeText(context, "Map Navigation", Toast.LENGTH_SHORT).show()
+                    }
+                )
                 HelperScreen.PROFILE -> HelperProfileScreen(
                     onBack = { currentScreen = HelperScreen.DASHBOARD },
                     onLogout = onLogout,
                     userData = userData
                 )
-                HelperScreen.SUPPORT -> Text("Helper Support Screen")
-                else -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Screen not implemented yet")
-                    }
+                HelperScreen.SUPPORT -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("Support Screen Placeholder")
+                }
+                HelperScreen.HISTORY -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text("History Screen Placeholder")
                 }
             }
         }
