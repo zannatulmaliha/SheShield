@@ -1,8 +1,13 @@
 package com.example.sheshield.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,17 +40,17 @@ object MockDangerData {
     val zones = listOf(
         DangerZone(
             id = "h1",
-            center = LatLng(23.8221, 90.3654),
+            center = LatLng(23.9485, 90.3824),
             radiusMeters = 800.0,
             riskLevel = RiskLevel.HIGH,
-            description = "Multiple reports of harassment in late hours."
+            description = "Poor lighting and industrial traffic."
         ),
         DangerZone(
             id = "h2",
             center = LatLng(23.7508, 90.3934),
             radiusMeters = 600.0,
             riskLevel = RiskLevel.HIGH,
-            description = "Poor lighting and industrial traffic."
+            description = "Multiple reports of harassment in late hours."
         ),
         DangerZone(
             id = "c1",
@@ -121,6 +126,25 @@ fun GeneralMapScreen() {
         val zone = MockDangerData.zones.find { zone ->
             calculateDistance(target, zone.center) <= zone.radiusMeters
         }
+        
+        if (zone != currentRiskStatus && zone?.riskLevel == RiskLevel.HIGH) {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(500)
+            }
+            Toast.makeText(context, "Warning: Entering High Risk Zone", Toast.LENGTH_SHORT).show()
+        }
+
         currentRiskStatus = zone
     }
 
@@ -150,7 +174,6 @@ fun GeneralMapScreen() {
 
         ExtendedFloatingActionButton(
             onClick = { 
-                // Placeholder for future navigation logic
                 Toast.makeText(context, "Calculating route to the nearest Safe Zone...", Toast.LENGTH_SHORT).show()
             },
             icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
@@ -163,7 +186,6 @@ fun GeneralMapScreen() {
                 .padding(top = 30.dp)
         )
 
-        // --- SAFETY STATUS CARD ---
         SafetyStatusCard(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
