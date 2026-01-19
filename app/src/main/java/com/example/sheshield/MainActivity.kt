@@ -5,10 +5,13 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,13 +25,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.models.UserData
 import com.example.sheshield.screens.*
+import com.example.sheshield.screens.helper.HelperScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
 import com.example.sheshield.screens.helper.HelperAlertsScreen // Make sure this is imported
 import com.example.sheshield.screens.helper.HelperScreen // Make sure this is imported
 import com.example.sheshield.ui.theme.SheShieldTheme
+import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
@@ -37,6 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             SheShieldTheme {
                 SheShieldApp()
@@ -65,6 +72,8 @@ enum class AppDestinations(
 fun SheShieldApp() {
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
+    val movementViewModel: MovementViewModel = viewModel()
 
     // State variables
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -72,6 +81,12 @@ fun SheShieldApp() {
     var isLoading by remember { mutableStateOf(true) }
     var appMode by rememberSaveable { mutableStateOf(AppMode.USER) }
     var userData by remember { mutableStateOf<UserData?>(null) }
+    var showMovementScreen by rememberSaveable { mutableStateOf(false) }
+
+    // Initialize movement view model
+    LaunchedEffect(Unit) {
+        movementViewModel.initialize(context)
+    }
 
     // Fetch user data when logged in
     LaunchedEffect(key1 = auth.currentUser) {
@@ -134,6 +149,7 @@ fun SheShieldApp() {
                         auth.signOut()
                         isLoggedIn = false
                         userData = null
+                        movementViewModel.stopMonitoring()
                     },
                     userData = userData
                 )
@@ -159,17 +175,51 @@ fun SheShieldApp() {
                             auth.signOut()
                             isLoggedIn = false
                             userData = null
+                            movementViewModel.stopMonitoring()
                         },
-                        showSwitchToHelper = true,
-                        onSwitchToHelperMode = { appMode = AppMode.HELPER }
+                        showSwitchToHelper = false,
+                        movementViewModel = movementViewModel,
+                        onMovementScreenClick = { showMovementScreen = true }
                     )
+                }
+            }
+            "user_helper" -> {
+                // User+Helper - can switch between modes
+                if (appMode == AppMode.USER) {
+                    if (showMovementScreen) {
+                        MovementDetectionScreen(
+                            onBack = { showMovementScreen = false },
+                            onAbnormalMovementDetected = { type, confidence ->
+                                println("🚨 Abnormal movement detected: $type ($confidence)")
+                            }
+                        )
+                    } else {
+                        UserModeApp(
+                            currentDestination = currentDestination,
+                            onDestinationChange = { currentDestination = it },
+                            onLogout = {
+                                auth.signOut()
+                                isLoggedIn = false
+                                userData = null
+                                movementViewModel.stopMonitoring()
+                            },
+                            showSwitchToHelper = true,
+                            onSwitchToHelperMode = { appMode = AppMode.HELPER },
+                            movementViewModel = movementViewModel,
+                            onMovementScreenClick = { showMovementScreen = true }
+                        )
+                    }
                 } else {
                     HelperModeApp(
-                        onSwitchToUserMode = { appMode = AppMode.USER },
+                        onSwitchToUserMode = {
+                            appMode = AppMode.USER
+                            movementViewModel.stopMonitoring()
+                        },
                         onLogout = {
                             auth.signOut()
                             isLoggedIn = false
                             userData = null
+                            movementViewModel.stopMonitoring()
                         },
                         userData = userData
                     )
@@ -198,8 +248,13 @@ fun UserModeApp(
     onDestinationChange: (AppDestinations) -> Unit,
     onLogout: () -> Unit,
     showSwitchToHelper: Boolean,
+    movementViewModel: MovementViewModel,
+    onMovementScreenClick: () -> Unit,
     onSwitchToHelperMode: (() -> Unit)? = null
 ) {
+    // Collect movement state - kept for badge indicator in HomeScreen
+    val movementState by movementViewModel.movementState.collectAsState()
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -207,7 +262,9 @@ fun UserModeApp(
                     NavigationBarItem(
                         selected = currentDestination == destination,
                         onClick = { onDestinationChange(destination) },
-                        icon = { Icon(destination.icon, destination.label) },
+                        icon = {
+                            Icon(destination.icon, destination.label)
+                        },
                         label = { Text(destination.label) }
                     )
                 }
@@ -230,7 +287,13 @@ fun UserModeApp(
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (currentDestination) {
-                AppDestinations.HOME -> HomeScreen()
+                AppDestinations.HOME -> HomeScreen(
+                    movementViewModel = movementViewModel,
+                    onCardOneClick = { onDestinationChange(AppDestinations.HOME) },
+                    onCardTwoClick = { onDestinationChange(AppDestinations.HOME) },
+                    onCardFiveClick = { onDestinationChange(AppDestinations.HOME) },
+                    onMovementScreenClick = onMovementScreenClick
+                )
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) }
                 )
@@ -294,6 +357,24 @@ fun HelperModeApp(
         bottomBar = {
             NavigationBar {
                 HelperScreen.entries.forEach { screen ->
+                    // Define the icon here to avoid type errors
+                    val iconVector = when(screen) {
+                        HelperScreen.DASHBOARD -> Icons.Default.Dashboard
+                        HelperScreen.ALERTS -> Icons.Default.Notifications
+                        HelperScreen.PROFILE -> Icons.Default.Person
+                        HelperScreen.SUPPORT -> Icons.Default.Help
+                        else -> Icons.Default.Info
+                    }
+
+                    // Define the label here
+                    val labelText = when(screen) {
+                        HelperScreen.DASHBOARD -> "Dashboard"
+                        HelperScreen.ALERTS -> "Alerts"
+                        HelperScreen.PROFILE -> "Profile"
+                        HelperScreen.SUPPORT -> "Help"
+                        else -> "Screen"
+                    }
+
                     NavigationBarItem(
                         selected = currentScreen == screen,
                         onClick = { currentScreen = screen },

@@ -396,37 +396,52 @@ Sent via SheShield
     }
 
     /**
-     * Save SOS alert to Firestore
+     * Save SOS alert to Firestore - FIXED for Helper Dashboard
      */
     private suspend fun saveSosToFirestore(
         contacts: List<com.example.sheshield.models.Contact>,
-        location: String,
+        locationString: String,
         userName: String
     ) {
         val userId = auth.currentUser?.uid ?: return
 
-        val sosData = hashMapOf(
+        // 1. Prepare data for the HELPER DASHBOARD (Public)
+        // IMPORTANT: status must be "active" (lowercase) to match the HelperService
+        val globalAlertData = hashMapOf(
+            "userName" to userName,
+            "description" to "SOS Alert triggered! Location: $locationString",
+            "riskLevel" to "high",
+            "status" to "active",     // <--- LOWERCASE "active" is critical!
+            "timestamp" to System.currentTimeMillis(),
+            "senderId" to userId,
+            "locationString" to locationString
+        )
+
+        // 2. Prepare data for User's History (Private)
+        val personalSosData = hashMapOf(
             "status" to "ACTIVE",
             "userName" to userName,
-            "location" to location,
+            "location" to locationString,
             "createdAt" to FieldValue.serverTimestamp(),
             "contacts" to contacts.map {
-                mapOf(
-                    "name" to it.name,
-                    "phone" to it.phone,
-                    "email" to it.email
-                )
+                mapOf("name" to it.name, "phone" to it.phone, "email" to it.email)
             }
         )
 
         try {
+            // A. Save to Global Alerts so Helpers can see it
+            firestore.collection("alerts")
+                .add(globalAlertData)
+
+            // B. Save to Private History
             firestore.collection("users")
                 .document(userId)
                 .collection("sos_alerts")
-                .add(sosData)
-            Log.d("SosViewModel", "Alert saved to Firestore")
+                .add(personalSosData)
+
+            Log.d("SosViewModel", "✅ Alert sent to Helpers and History")
         } catch (e: Exception) {
-            Log.e("SosViewModel", "Firestore save failed", e)
+            Log.e("SosViewModel", "❌ Firestore save failed", e)
         }
     }
 

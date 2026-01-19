@@ -71,8 +71,10 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")
 
-    /* -------------------- Location -------------------- */
+    /* -------------------- Location & Maps -------------------- */
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation(libs.maps.compose) // Google Maps Compose
+    implementation(libs.play.services.maps) // Google Maps SDK
 
     /* -------------------- WorkManager -------------------- */
     implementation("androidx.work:work-runtime-ktx:2.9.0")
@@ -81,6 +83,9 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation(libs.androidx.compose.ui.text)
+    implementation(libs.androidx.foundation)
 
     /* -------------------- Testing -------------------- */
     testImplementation(libs.junit)
