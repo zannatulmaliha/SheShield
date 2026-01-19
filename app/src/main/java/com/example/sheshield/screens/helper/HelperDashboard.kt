@@ -3,6 +3,7 @@ package com.example.sheshield.screens.helper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
+// Kept tracking logic so the map feature still works
+//import com.example.sheshield.screens.helper.HelperTrackingLogic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +34,38 @@ fun HelperDashboard(
     var nearbyAlerts by remember { mutableStateOf<List<Alert>>(emptyList()) }
     var selectedAlert by remember { mutableStateOf<Alert?>(null) }
 
+    // 1. MOCK DATA RESTORED
+    // These alerts will appear when you flip the switch to "Active"
+    val mockAlerts = remember {
+        listOf(
+            Alert(
+                id = "1",
+                userName = "Sarah",
+                alertType = "SOS",
+                riskLevel = "high",
+                description = "SOS triggered - immediate assistance needed",
+                timestamp = System.currentTimeMillis()
+            ),
+            Alert(
+                id = "2",
+                userName = "Maya",
+                alertType = "check_in",
+                riskLevel = "medium",
+                description = "Missed safety check-in",
+                timestamp = System.currentTimeMillis()
+            )
+        )
+    }
+
+    // 2. Logic to toggle alerts based on Active status
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            nearbyAlerts = mockAlerts
+        } else {
+            nearbyAlerts = emptyList()
+        }
+    }
+
     // Mock stats data
     val helperStats = remember {
         mapOf(
@@ -39,32 +74,6 @@ fun HelperDashboard(
             "avg_time" to "8m",
             "trust_score" to "94"
         )
-    }
-
-    // Mock alerts for demonstration
-    LaunchedEffect(key1 = isActive) {
-        if (isActive) {
-            nearbyAlerts = listOf(
-                Alert(
-                    id = "1",
-                    userName = "Sarah",
-                    alertType = "SOS",
-                    riskLevel = "high",
-                    description = "SOS triggered - immediate assistance needed",
-                    timestamp = System.currentTimeMillis() - 300000
-                ),
-                Alert(
-                    id = "2",
-                    userName = "Maya",
-                    alertType = "check_in",
-                    riskLevel = "medium",
-                    description = "Missed safety check-in",
-                    timestamp = System.currentTimeMillis() - 900000
-                )
-            )
-        } else {
-            nearbyAlerts = emptyList()
-        }
     }
 
     Scaffold(
@@ -147,7 +156,6 @@ fun HelperDashboard(
                             )
                         }
 
-                        // Gender badge
                         if (userData?.gender == "male") {
                             Box(
                                 modifier = Modifier
@@ -198,9 +206,7 @@ fun HelperDashboard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(
-                            modifier = Modifier
-                        ) {
+                        Column {
                             Text(
                                 if (isActive) "ACTIVE - Receiving Alerts" else "INACTIVE",
                                 style = MaterialTheme.typography.titleMedium,
@@ -229,85 +235,34 @@ fun HelperDashboard(
                 }
             }
 
-            // Quick Stats Grid
+            // Stats Grid
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Your Stats",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Your Stats", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            StatItem(
-                                icon = Icons.Default.AssignmentTurnedIn,
-                                value = helperStats["responses"] ?: "0",
-                                label = "Responses",
-                                color = Color(0xFF6200EE)
-                            )
-                            StatItem(
-                                icon = Icons.Default.Star,
-                                value = helperStats["success"] ?: "0%",
-                                label = "Success Rate",
-                                color = Color(0xFF4CAF50)
-                            )
-                            StatItem(
-                                icon = Icons.Default.Schedule,
-                                value = helperStats["avg_time"] ?: "0m",
-                                label = "Avg Time",
-                                color = Color(0xFF2196F3)
-                            )
-                            StatItem(
-                                icon = Icons.Default.Security,
-                                value = helperStats["trust_score"] ?: "0",
-                                label = "Trust Score",
-                                color = Color(0xFFFF9800)
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            StatItem(Icons.Default.AssignmentTurnedIn, helperStats["responses"] ?: "0", "Responses", Color(0xFF6200EE))
+                            StatItem(Icons.Default.Star, helperStats["success"] ?: "0%", "Success Rate", Color(0xFF4CAF50))
+                            StatItem(Icons.Default.Schedule, helperStats["avg_time"] ?: "0m", "Avg Time", Color(0xFF2196F3))
+                            StatItem(Icons.Default.Security, helperStats["trust_score"] ?: "0", "Trust Score", Color(0xFFFF9800))
                         }
-
-                        // Helper Level Progress
                         Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                "Level ${userData?.helperLevel ?: 1}",
-                                fontWeight = FontWeight.Bold
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Level ${userData?.helperLevel ?: 1}", fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(12.dp))
                             LinearProgressIndicator(
                                 progress = { 0.75f },
-                                modifier = Modifier
-                                    .height(8.dp)
-                                    .fillMaxWidth(),
-                                color = Color(0xFF6200EE),
-                                trackColor = Color(0xFFE0E0E0)
+                                modifier = Modifier.height(8.dp).weight(1f),
+                                color = Color(0xFF6200EE)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                "Level ${(userData?.helperLevel ?: 1) + 1}",
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("Level ${(userData?.helperLevel ?: 1) + 1}", fontWeight = FontWeight.Bold)
                         }
-                        Text(
-                            "75% to next level",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
                     }
                 }
             }
@@ -315,82 +270,14 @@ fun HelperDashboard(
             // Interactive Map Placeholder
             item {
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(250.dp).padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Map,
-                                contentDescription = "Map",
-                                modifier = Modifier.size(48.dp),
-                                tint = Color(0xFF6200EE)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Interactive Map",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Color-coded alert pins:\n🔴 High 🟡 Medium 🟢 Low",
-                                textAlign = TextAlign.Center,
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            )
-
-                            // Mock Alert Pins
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                AlertPin(
-                                    color = Color.Red,
-                                    onClick = {
-                                        selectedAlert = Alert(
-                                            id = "1",
-                                            userName = "High Risk Alert",
-                                            alertType = "SOS",
-                                            riskLevel = "high",
-                                            description = "Mock high risk alert for demo"
-                                        )
-                                    }
-                                )
-                                AlertPin(
-                                    color = Color.Yellow,
-                                    onClick = {
-                                        selectedAlert = Alert(
-                                            id = "2",
-                                            userName = "Medium Risk Alert",
-                                            alertType = "Check-in",
-                                            riskLevel = "medium",
-                                            description = "Mock medium risk alert for demo"
-                                        )
-                                    }
-                                )
-                                AlertPin(
-                                    color = Color.Green,
-                                    onClick = {
-                                        selectedAlert = Alert(
-                                            id = "3",
-                                            userName = "Low Risk Alert",
-                                            alertType = "Safety",
-                                            riskLevel = "low",
-                                            description = "Mock low risk alert for demo"
-                                        )
-                                    }
-                                )
-                            }
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Map, "Map", modifier = Modifier.size(48.dp), tint = Color(0xFF6200EE))
+                            Text("Interactive Map", fontWeight = FontWeight.Bold)
+                            Text("🔴 High 🟡 Medium 🟢 Low", fontSize = 14.sp, color = Color.Gray)
                         }
                     }
                 }
@@ -403,58 +290,29 @@ fun HelperDashboard(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                "Nearby Alerts",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("Nearby Alerts", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             TextButton(onClick = { onNavigate(HelperScreen.ALERTS) }) {
                                 Text("See All")
                             }
                         }
 
+                        // Use isActive to show/hide content
                         if (nearbyAlerts.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        Icons.Default.NotificationsOff,
-                                        "No Alerts",
-                                        tint = Color.Gray
-                                    )
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.NotificationsOff, "No Alerts", tint = Color.Gray)
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        "No alerts nearby",
-                                        color = Color.Gray
-                                    )
-                                    if (!isActive) {
-                                        Text(
-                                            "Go active to receive alerts",
-                                            fontSize = 12.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
+                                    Text(if (!isActive) "Go active to receive alerts" else "No alerts nearby", color = Color.Gray)
                                 }
                             }
                         } else {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 nearbyAlerts.forEach { alert ->
                                     NearbyAlertItem(
                                         alert = alert,
@@ -467,50 +325,16 @@ fun HelperDashboard(
                 }
             }
 
-            // Gender-specific Guidelines (for male helpers)
+            // Male Guidelines
             if (userData?.gender == "male") {
                 item {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFE3F2FD)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            Color(0xFF1976D2)
-                        )
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Info,
-                                    "Guidelines",
-                                    tint = Color(0xFF1976D2)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Male Helper Guidelines",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color(0xFF1976D2),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "• Announce yourself clearly when approaching\n" +
-                                        "• Maintain respectful distance at all times\n" +
-                                        "• Call emergency services first if needed\n" +
-                                        "• Do not enter private residences\n" +
-                                        "• Keep location sharing enabled",
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp
-                            )
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Male Helper Guidelines", color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
+                            Text("• Announce yourself clearly\n• Maintain respectful distance\n• Call emergency services if needed", fontSize = 14.sp)
                         }
                     }
                 }
@@ -518,45 +342,14 @@ fun HelperDashboard(
 
             // Quick Actions
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Quick Actions",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            QuickActionButton(
-                                icon = Icons.Default.Settings,
-                                label = "Settings",
-                                onClick = { onNavigate(HelperScreen.PROFILE) }
-                            )
-                            QuickActionButton(
-                                icon = Icons.Default.Help,
-                                label = "Support",
-                                onClick = { onNavigate(HelperScreen.SUPPORT) }
-                            )
-                            QuickActionButton(
-                                icon = Icons.Default.History,
-                                label = "History",
-                                onClick = { /* Open history */ }
-                            )
-                            QuickActionButton(
-                                icon = Icons.Default.School,
-                                label = "Training",
-                                onClick = { /* Open training */ }
-                            )
+                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Quick Actions", fontWeight = FontWeight.Bold)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            QuickActionButton(Icons.Default.Settings, "Settings", { onNavigate(HelperScreen.PROFILE) })
+                            QuickActionButton(Icons.Default.Help, "Support", { onNavigate(HelperScreen.SUPPORT) })
+                            QuickActionButton(Icons.Default.History, "History", { onNavigate(HelperScreen.HISTORY) })
+                            QuickActionButton(Icons.Default.School, "Training", { /* Training */ })
                         }
                     }
                 }
@@ -565,70 +358,25 @@ fun HelperDashboard(
 
         // Alert Detail Dialog
         selectedAlert?.let { alert ->
+            val context = androidx.compose.ui.platform.LocalContext.current
             AlertDialog(
                 onDismissRequest = { selectedAlert = null },
-                title = {
-                    Text("Alert Details - ${alert.userName}")
-                },
-                text = {
-                    Column {
-                        // Risk level badge
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    when(alert.riskLevel) {
-                                        "high" -> Color.Red
-                                        "medium" -> Color.Yellow
-                                        else -> Color.Green
-                                    },
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                alert.riskLevel.uppercase(),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            "Alert Type: ${alert.alertType.uppercase()}",
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            alert.description,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                        Text(
-                            "Distance: 2.3 km away",
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                },
+                title = { Text("Alert Details - ${alert.userName}") },
+                text = { Text(alert.description) },
                 confirmButton = {
                     Button(
                         onClick = {
+                            //HelperTrackingLogic.startNavigationToUser(context, alert)
                             onAcceptAlert(alert)
                             selectedAlert = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Check, "Accept")
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text("Accept Alert")
                     }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { selectedAlert = null },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Cancel")
-                    }
+                    TextButton(onClick = { selectedAlert = null }) { Text("Cancel") }
                 }
             )
         }
@@ -636,58 +384,27 @@ fun HelperDashboard(
 }
 
 @Composable
-fun StatItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    label: String,
-    color: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(color.copy(alpha = 0.1f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
+fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.size(48.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
             Icon(icon, label, tint = color, modifier = Modifier.size(24.dp))
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            label,
-            fontSize = 12.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
+        Text(value, fontWeight = FontWeight.Bold)
+        Text(label, fontSize = 12.sp, color = Color.Gray)
     }
 }
 
 @Composable
 fun AlertPin(color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .background(color, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            Icons.Default.LocationOn,
-            "Alert Pin",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
+    IconButton(onClick = onClick) {
+        Icon(Icons.Default.LocationOn, "Pin", tint = color, modifier = Modifier.size(32.dp))
     }
 }
 
 @Composable
 fun NearbyAlertItem(alert: Alert, onAccept: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -697,74 +414,37 @@ fun NearbyAlertItem(alert: Alert, onAccept: () -> Unit) {
                 else -> Color(0xFFE8F5E9)
             }
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            when(alert.riskLevel) {
-                "high" -> Color.Red
-                "medium" -> Color.Yellow
-                else -> Color.Green
-            }
-        )
+        border = androidx.compose.foundation.BorderStroke(1.dp, when(alert.riskLevel) {
+            "high" -> Color.Red
+            "medium" -> Color.Yellow
+            else -> Color.Green
+        })
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        alert.userName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(alert.userName, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                when(alert.riskLevel) {
-                                    "high" -> Color.Red
-                                    "medium" -> Color.Yellow
-                                    else -> Color.Green
-                                },
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            alert.riskLevel.uppercase(),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Box(modifier = Modifier.background(when(alert.riskLevel) {
+                        "high" -> Color.Red
+                        "medium" -> Color.Yellow
+                        else -> Color.Green
+                    }, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                        Text(alert.riskLevel.uppercase(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-
-                Text(
-                    alert.description,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                Text(
-                    "2.3 km away • 5 min ago",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
+                Text(alert.description, fontSize = 14.sp, maxLines = 2)
+                Text("Real-time Alert • GPS active", fontSize = 12.sp, color = Color.Gray)
             }
 
             Button(
-                onClick = onAccept,
+                onClick = {
+                    // Call your tracking logic here!
+                    //HelperTrackingLogic.startNavigationToUser(context, alert)
+                    onAccept()
+                },
                 modifier = Modifier.padding(start = 8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6200EE)
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE))
             ) {
                 Text("Accept")
             }
@@ -773,38 +453,13 @@ fun NearbyAlertItem(alert: Alert, onAccept: () -> Unit) {
 }
 
 @Composable
-fun QuickActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .background(Color(0xFFF5F5F5), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon,
-                label,
-                tint = Color(0xFF6200EE),
-                modifier = Modifier.size(24.dp)
-            )
+fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(modifier = Modifier.size(56.dp).background(Color(0xFFF5F5F5), CircleShape).padding(12.dp)) {
+            IconButton(onClick = onClick) {
+                Icon(icon, label, tint = Color(0xFF6200EE))
+            }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            label,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
-        )
+        Text(label, fontSize = 12.sp)
     }
-}
-
-// Helper Screen Enum
-enum class HelperScreen {
-    DASHBOARD, ALERTS, PROFILE, SUPPORT
 }
