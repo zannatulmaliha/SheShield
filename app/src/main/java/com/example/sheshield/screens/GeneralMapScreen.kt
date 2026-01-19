@@ -2,82 +2,223 @@ package com.example.sheshield.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.sheshield.model.DangerZone
+import com.example.sheshield.model.RiskLevel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 
+object MockDangerData {
+    val defaultLocation = LatLng(23.7937, 90.4066)
+
+    val zones = listOf(
+        DangerZone(
+            id = "h1",
+            center = LatLng(23.8221, 90.3654),
+            radiusMeters = 800.0,
+            riskLevel = RiskLevel.HIGH,
+            description = "Multiple reports of harassment in late hours."
+        ),
+        DangerZone(
+            id = "h2",
+            center = LatLng(23.7508, 90.3934),
+            radiusMeters = 600.0,
+            riskLevel = RiskLevel.HIGH,
+            description = "Poor lighting and industrial traffic."
+        ),
+        DangerZone(
+            id = "c1",
+            center = LatLng(23.8892, 90.3934),
+            radiusMeters = 500.0,
+            riskLevel = RiskLevel.CAUTION,
+            description = "Heavy traffic congestion and low visibility."
+        ),
+        DangerZone(
+            id = "c2",
+            center = LatLng(23.7335, 90.4116),
+            radiusMeters = 700.0,
+            riskLevel = RiskLevel.CAUTION,
+            description = "Large crowds, keep personal belongings safe."
+        ),
+        DangerZone(
+            id = "s1",
+            center = LatLng(23.7986, 90.4215),
+            radiusMeters = 900.0,
+            riskLevel = RiskLevel.SAFE,
+            description = "Heavy security and police patrol present."
+        ),
+        DangerZone(
+            id = "s2",
+            center = LatLng(23.7461, 90.3742),
+            radiusMeters = 600.0,
+            riskLevel = RiskLevel.SAFE,
+            description = "Verified safe for pedestrians during day hours."
+        )
+    )
+}
+
 @Composable
 fun GeneralMapScreen() {
     val context = LocalContext.current
-    val defaultLocation = LatLng(23.8103, 90.4125)
-    var isMapLoaded by remember { mutableStateOf(false) }
     
-    // Check Permission
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
+    var currentRiskStatus by remember { mutableStateOf<DangerZone?>(null) }
+    
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
+        position = CameraPosition.fromLatLngZoom(MockDangerData.defaultLocation, 13f)
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { hasLocationPermission = it }
-    )
+    var hasLocationPermission by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        hasLocationPermission = it
+    }
 
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             try {
-                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                    .addOnSuccessListener { location ->
-                        if (location != null) {
+                val client = LocationServices.getFusedLocationProviderClient(context)
+                client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { loc ->
+                        if (loc != null) {
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                LatLng(location.latitude, location.longitude), 15f
+                                LatLng(loc.latitude, loc.longitude), 15f
                             )
                         }
                     }
-            } catch (e: SecurityException) {}
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         } else {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
-    // No Scaffold, No TopBar, No Buttons - Just the Map area
+    LaunchedEffect(cameraPositionState.position) {
+        val target = cameraPositionState.position.target
+        val zone = MockDangerData.zones.find { zone ->
+            calculateDistance(target, zone.center) <= zone.radiusMeters
+        }
+        currentRiskStatus = zone
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        if (hasLocationPermission) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(isMyLocationEnabled = true),
-                uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = true),
-                onMapLoaded = { isMapLoaded = true }
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = true
+            ),
+            properties = MapProperties(
+                isMyLocationEnabled = hasLocationPermission,
+                mapType = MapType.NORMAL
             )
-        } else {
-            Text("Permission required", modifier = Modifier.align(Alignment.Center))
+        ) {
+            MockDangerData.zones.forEach { zone ->
+                Circle(
+                    center = zone.center,
+                    radius = zone.radiusMeters,
+                    fillColor = zone.riskLevel.color,
+                    strokeColor = zone.riskLevel.color.copy(alpha = 1f),
+                    strokeWidth = 2f
+                )
+            }
         }
 
-        if (!isMapLoaded && hasLocationPermission) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = Color(0xFF6000E9)
+        ExtendedFloatingActionButton(
+            onClick = { 
+                // Placeholder for future navigation logic
+                Toast.makeText(context, "Calculating route to the nearest Safe Zone...", Toast.LENGTH_SHORT).show()
+            },
+            icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+            text = { Text("Navigate to Safe Zone") },
+            containerColor = Color(0xFF4CAF50),
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(8.dp),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 30.dp)
+        )
+
+        // --- SAFETY STATUS CARD ---
+        SafetyStatusCard(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp, 16.dp, 16.dp, 90.dp),
+            zone = currentRiskStatus
+        )
+    }
+}
+
+@Composable
+fun SafetyStatusCard(modifier: Modifier = Modifier, zone: DangerZone?) {
+    if (zone == null) return
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = zone.riskLevel.color.copy(alpha = 1f),
+                modifier = Modifier.size(40.dp)
             )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = zone.riskLevel.label,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+                Text(
+                    text = zone.description,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
         }
     }
+}
+
+fun calculateDistance(start: LatLng, end: LatLng): Double {
+    val results = FloatArray(1)
+    Location.distanceBetween(
+        start.latitude, start.longitude,
+        end.latitude, end.longitude,
+        results
+    )
+    return results[0].toDouble()
 }
