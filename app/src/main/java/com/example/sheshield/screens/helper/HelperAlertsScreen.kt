@@ -42,6 +42,57 @@ data class AlertUIModel(
     val eta: String
 )
 
+
+// Add this new composable to your HelperAlertsScreen.kt file
+@Composable
+fun HelperAlertsContent(
+    onNavigateToMap: () -> Unit
+) {
+    val bgGray = Color(0xFFF9FAFB)
+    val purplePrimary = Color(0xFF9333EA)
+
+    // Tab State
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Nearby Alerts (6)", "My Response (1)")
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgGray)
+    ) {
+        // --- TABS ---
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.White,
+            contentColor = purplePrimary,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = purplePrimary
+                )
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+            }
+        }
+
+        // --- TAB CONTENT ---
+        when (selectedTabIndex) {
+            0 -> NearbyAlertsTab(onNavigateToMap)
+            1 -> MyResponseTab()
+        }
+    }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelperAlertsScreen(
