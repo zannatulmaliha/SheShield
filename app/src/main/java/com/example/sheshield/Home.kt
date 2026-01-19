@@ -79,7 +79,9 @@ fun HomeScreen(
             onNavigate = { currentScreen = it },
             onBack = { currentScreen = "home" }
         )
-        "responders" -> RespondersNearMeScreen()
+        "responders" -> RespondersNearMeScreen(
+            onBackClick = { currentScreen = "home" }
+        )
         "trackRoute" -> TrackRouteScreen(
             onBack = { currentScreen = "home" }
         )
@@ -736,7 +738,7 @@ fun cardFive(onClick: () -> Unit) {
                 .height(90.dp)
         )
         Column {
-            Text("Responders near me", fontWeight = FontWeight.Medium)
+            Text("Responders Near Me", fontWeight = FontWeight.Medium)
             Text("Find verified helpers", color = Color.Gray, fontSize = 14.sp)
         }
     }
