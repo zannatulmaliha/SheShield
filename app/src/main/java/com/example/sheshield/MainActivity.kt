@@ -143,6 +143,7 @@ fun SheShieldApp() {
             },
             onSwitchToHelperMode = {
                 // Not needed here, handled by userType selection
+
             }
         )
     }
@@ -288,9 +289,12 @@ fun UserModeApp(
             }
         },
         floatingActionButton = {
-            if (showSwitchToHelper && onSwitchToHelperMode != null) {
+            //if (showSwitchToHelper && onSwitchToHelperMode != null) {
                 FloatingActionButton(
-                    onClick = onSwitchToHelperMode,
+                    onClick = {
+                        onSwitchToHelperMode?.invoke();
+                        //appMode = AppMode.HELPER; // wny error here? unresolved reference appMode
+                    }, //onSwitchToHelperMode,
                     containerColor = Color(0xFF6200EE)
                 ) {
                     Icon(
@@ -299,7 +303,7 @@ fun UserModeApp(
                         tint = Color.White
                     )
                 }
-            }
+            //}
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
