@@ -5,9 +5,9 @@ data class Alert(
     val userId: String = "",
     val userName: String = "",
     val userPhone: String = "",
-    val alertType: String = "", // "emergency", "check_in", "sos"
-    val riskLevel: String = "", // "high", "medium", "low"
-    val status: String = "", // "pending", "accepted", "en_route", "arrived", "resolved"
+    val alertType: String = "SOS", // Set default to SOS
+    val riskLevel: String = "high", // Set default to high
+    val status: String = "active", // Set default to active
     val location: LocationData = LocationData(),
     val timestamp: Long = System.currentTimeMillis(),
     val description: String = "",

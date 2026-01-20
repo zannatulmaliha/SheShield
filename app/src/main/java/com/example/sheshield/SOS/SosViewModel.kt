@@ -112,7 +112,7 @@ class SosViewModel(
                 // 2. Get user location
                 val location = getLocation(context)
                 val locationString = if (location != null) {
-                    "https://www.google.com/maps?q=${location.latitude},${location.longitude}"
+                    "http://googleusercontent.com/maps.google.com/?q=${location.latitude},${location.longitude}"
                 } else {
                     "Location unavailable - GPS disabled or no permission"
                 }
@@ -174,8 +174,8 @@ Sent via SheShield
                     Log.e("SosViewModel", "Email sending failed", e)
                 }
 
-                // 9. Save to Firestore
-                saveSosToFirestore(contacts, locationString, userName)
+                // 9. Save to Firestore (Updated to pass the Location object)
+                saveSosToFirestore(contacts, locationString, userName, location)
 
                 // 10. Show detailed success message
                 val message = buildString {
@@ -401,20 +401,29 @@ Sent via SheShield
     private suspend fun saveSosToFirestore(
         contacts: List<com.example.sheshield.models.Contact>,
         locationString: String,
-        userName: String
+        userName: String,
+        location: Location? // Added Location parameter
     ) {
         val userId = auth.currentUser?.uid ?: return
 
         // 1. Prepare data for the HELPER DASHBOARD (Public)
-        // IMPORTANT: status must be "active" (lowercase) to match the HelperService
+        // We now structure this to match the Alert data class exactly
         val globalAlertData = hashMapOf(
+            "userId" to userId,
             "userName" to userName,
             "description" to "SOS Alert triggered! Location: $locationString",
             "riskLevel" to "high",
-            "status" to "active",     // <--- LOWERCASE "active" is critical!
+            "status" to "active",     // Status must be active for dashboard visibility
+            "alertType" to "SOS",
             "timestamp" to System.currentTimeMillis(),
             "senderId" to userId,
-            "locationString" to locationString
+            "locationString" to locationString,
+            // Structure location as a nested object to match Alert.kt model
+            "location" to mapOf(
+                "latitude" to (location?.latitude ?: 0.0),
+                "longitude" to (location?.longitude ?: 0.0),
+                "address" to locationString
+            )
         )
 
         // 2. Prepare data for User's History (Private)

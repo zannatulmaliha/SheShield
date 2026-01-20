@@ -9,26 +9,34 @@ import com.example.sheshield.models.Alert
 object HelperTrackingLogic {
     /**
      * This function opens the external Google Maps app in Navigation mode.
-     * It uses the coordinates from the Alert model to set the destination.
+     * It uses the real coordinates from the Alert model to set the destination.
      */
     fun startNavigationToUser(context: Context, alert: Alert) {
-        // We pull the location from the Alert object.
-        // If the coordinates aren't in the model yet, we use Sarah's mock location as a fallback.
-        val lat = "23.8103"
-        val lng = "90.4125"
+        // 1. Pull the REAL location from the Alert object
+        val lat = alert.location.latitude
+        val lng = alert.location.longitude
 
-        // This URI tells Android to open Google Maps in 'Drive' navigation mode
+        // 2. Safety Check: If coordinates are 0.0, GPS likely failed to capture location
+        if (lat == 0.0 && lng == 0.0) {
+            Toast.makeText(context, "Location data missing for this alert", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 3. Create the Google Maps Intent
+        // "google.navigation:q=lat,lng" tells Maps to navigate to these coordinates
+        // "&mode=d" forces driving mode (you can change to 'w' for walking if preferred)
         val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lng&mode=d")
         val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
 
-        // Force the intent to use Google Maps
+        // Force the intent to use Google Maps app specifically
         mapIntent.setPackage("com.google.android.apps.maps")
 
         try {
+            // Check if Google Maps is installed
             if (mapIntent.resolveActivity(context.packageManager) != null) {
                 context.startActivity(mapIntent)
             } else {
-                // Fallback if Google Maps app is not installed
+                // 4. Fallback: If Maps app is missing, open in Browser
                 val webIntent = Intent(Intent.ACTION_VIEW,
                     Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$lat,$lng"))
                 context.startActivity(webIntent)
