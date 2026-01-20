@@ -3,7 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- EXISTING PERMISSIONS -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+   
+
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.SEND_SMS" />
@@ -19,34 +27,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-
-    <uses-permission android:name="android.permission.CAMERA" />
-
-
-
-
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
-    <!-- Storage (for Android 10 and below) -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-
-    <!-- For Android 11+ -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
-
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-
-
-    <uses-feature android:name="android.hardware.camera" />
-    <uses-feature android:name="android.hardware.camera.autofocus" />
-    <uses-feature android:name="android.hardware.microphone" />
-    <uses-feature
-        android:name="android.hardware.telephony"
-        android:required="false" />
-
-
     <queries>
         <intent>
             <action android:name="android.intent.action.CALL" />
@@ -57,6 +37,8 @@
             <data android:scheme="tel" />
         </intent>
     </queries>
+
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
@@ -112,7 +94,8 @@
             android:name=".services.AudioRecorderService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="camera|microphone" />
+            android:foregroundServiceType="microphone" />
+
 
         <!-- NEW: BOOT RECEIVER (Auto-start voice service on boot) -->
         <receiver
