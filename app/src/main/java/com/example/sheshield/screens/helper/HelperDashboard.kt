@@ -1,5 +1,7 @@
 package com.example.sheshield.screens.helper
 
+import android.location.Location
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,12 +15,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
+import com.google.android.gms.location.LocationServices
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+
 // Kept tracking logic so the map feature still works
 import com.example.sheshield.screens.helper.HelperTrackingLogic
 
@@ -30,43 +37,17 @@ fun HelperDashboard(
     onAcceptAlert: (Alert) -> Unit,
     userData: UserData?
 ) {
+    val context = LocalContext.current
     var isActive by remember { mutableStateOf(false) }
-    var nearbyAlerts by remember { mutableStateOf<List<Alert>>(emptyList()) }
+
+    // State for REAL alerts
+    val nearbyAlerts = remember { mutableStateListOf<Alert>() }
     var selectedAlert by remember { mutableStateOf<Alert?>(null) }
 
-    // 1. MOCK DATA RESTORED
-    // These alerts will appear when you flip the switch to "Active"
-    val mockAlerts = remember {
-        listOf(
-            Alert(
-                id = "1",
-                userName = "Sarah",
-                alertType = "SOS",
-                riskLevel = "high",
-                description = "SOS triggered - immediate assistance needed",
-                timestamp = System.currentTimeMillis()
-            ),
-            Alert(
-                id = "2",
-                userName = "Maya",
-                alertType = "check_in",
-                riskLevel = "medium",
-                description = "Missed safety check-in",
-                timestamp = System.currentTimeMillis()
-            )
-        )
-    }
+    // State for Helper's Own Location
+    var helperLocation by remember { mutableStateOf<Location?>(null) }
 
-    // 2. Logic to toggle alerts based on Active status
-    LaunchedEffect(isActive) {
-        if (isActive) {
-            nearbyAlerts = mockAlerts
-        } else {
-            nearbyAlerts = emptyList()
-        }
-    }
-
-    // Mock stats data
+    // Mock stats data (Keep this mock for now until you build a stats backend)
     val helperStats = remember {
         mapOf(
             "responses" to "24",
@@ -74,6 +55,79 @@ fun HelperDashboard(
             "avg_time" to "8m",
             "trust_score" to "94"
         )
+    }
+
+    // 1. Get Helper's Current Location when they go Active
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            try {
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                // We assume permission is granted since you handle it in MainActivity
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        helperLocation = location
+                        Log.d("HelperDashboard", "Helper Location found: ${location.latitude}, ${location.longitude}")
+                    } else {
+                        Log.w("HelperDashboard", "Helper Location is null")
+                    }
+                }
+            } catch (e: SecurityException) {
+                Log.e("HelperDashboard", "Location permission missing", e)
+            }
+        }
+    }
+
+    // 2. Listen to Firestore and Filter by Distance
+    LaunchedEffect(isActive, helperLocation) {
+        if (isActive && helperLocation != null) {
+            val db = FirebaseFirestore.getInstance()
+            val radiusKm = userData?.responseRadius ?: 5 // Default to 5km if null
+
+            // Listen to ALL active alerts
+            // We order by timestamp descending to see newest first
+            val registration = db.collection("alerts")
+                .whereEqualTo("status", "active")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshots, e ->
+                    if (e != null) {
+                        Log.w("HelperDashboard", "Listen failed.", e)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshots != null) {
+                        nearbyAlerts.clear()
+                        for (doc in snapshots) {
+                            try {
+                                val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
+
+                                // --- DISTANCE FILTERING LOGIC ---
+                                // Create a Location object for the alert
+                                val alertLoc = Location("alert")
+                                alertLoc.latitude = alert.location.latitude
+                                alertLoc.longitude = alert.location.longitude
+
+                                // Calculate distance
+                                val distanceInMeters = helperLocation!!.distanceTo(alertLoc)
+                                val distanceInKm = distanceInMeters / 1000
+
+                                Log.d("HelperDashboard", "Alert ${alert.userName} is $distanceInKm km away")
+
+                                // Only add if within radius (and not your own alert)
+                                if (distanceInKm <= radiusKm && alert.userId != userData?.userId) {
+                                    nearbyAlerts.add(alert)
+                                }
+                                // -------------------------------
+
+                            } catch (err: Exception) {
+                                Log.e("HelperDashboard", "Error parsing alert", err)
+                            }
+                        }
+                    }
+                }
+        } else {
+            // If inactive, clear list
+            nearbyAlerts.clear()
+        }
     }
 
     Scaffold(
