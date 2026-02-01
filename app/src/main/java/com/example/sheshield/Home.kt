@@ -41,18 +41,16 @@ import com.example.sheshield.SOS.*
 import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.ui.screens.TimedCheckIn
 import com.example.sheshield.viewmodel.MovementViewModel
-import com.google.android.gms.location.LocationServices
 import com.example.sheshield.R
 
 import com.example.sheshield.services.VoiceCommandService
-
 import com.example.sheshield.screens.TrackRouteScreen
 
 @Composable
 fun HomeScreen(
     movementViewModel: MovementViewModel,
     sosViewModel: SosViewModel = viewModel(),
-    onCardOneClick: () -> Unit,
+    onCardOneClick: () -> Unit, // Kept for compatibility, but we use local nav now
     onCardTwoClick: () -> Unit,
     onCardFiveClick: () -> Unit,
     onMovementScreenClick: () -> Unit
@@ -67,13 +65,12 @@ fun HomeScreen(
         "home" -> HomeContent(
             sosViewModel = sosViewModel,
             movementViewModel = movementViewModel,
-            onCardOneClick = { onCardOneClick() },
-            onCardTwoClick = { onCardTwoClick() },
-            onCardFiveClick = { onCardFiveClick() },
+            // --- FIX: Update local state instead of calling parent ---
+            onCardOneClick = { currentScreen = "trackRoute" },
+            onCardTwoClick = { currentScreen = "timedCheckIn" },
+            onCardFiveClick = { currentScreen = "responders" }, // Opens the Portal
+            // -------------------------------------------------------
             onMovementScreenClick = { showMovementScreen = true }
-          //  onCardOneClick = { currentScreen = "trackRoute" },
-        //    onCardTwoClick = { currentScreen = "timedCheckIn" },
-       //     onCardFiveClick = { currentScreen = "responders" }
         )
         "timedCheckIn" -> TimedCheckIn(
             onNavigate = { currentScreen = it },
@@ -191,7 +188,7 @@ fun HomeContent(
     ) {
         top_bar()
 
-        // VOICE PROTECTION CARD - NEW
+        // VOICE PROTECTION CARD
         Card(
             modifier = Modifier
                 .fillMaxWidth()
