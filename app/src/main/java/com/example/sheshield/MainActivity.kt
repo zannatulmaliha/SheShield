@@ -7,10 +7,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,9 +23,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.models.UserData
 import com.example.sheshield.screens.*
-import com.example.sheshield.screens.helper.HelperAlertsContent
+import com.example.sheshield.screens.helper.HelperAlertsScreen // Using HelperAlertsScreen instead of Content for standalone
 import com.example.sheshield.screens.helper.HelperScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
@@ -79,7 +78,10 @@ fun SheShieldApp() {
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
+
+    // ViewModels
     val movementViewModel: MovementViewModel = viewModel()
+    val sosViewModel: SosViewModel = viewModel() // Initialize SOS ViewModel here
 
     // State variables
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
@@ -92,6 +94,11 @@ fun SheShieldApp() {
     // Initialize movement view model
     LaunchedEffect(Unit) {
         movementViewModel.initialize(context)
+    }
+
+    // Initialize location for SOS
+    LaunchedEffect(Unit) {
+        sosViewModel.initLocationClient(context)
     }
 
     // Fetch user data when logged in
@@ -149,7 +156,6 @@ fun SheShieldApp() {
             },
             onSwitchToHelperMode = {
                 // Not needed here, handled by userType selection
-
             }
         )
     }
@@ -176,6 +182,11 @@ fun SheShieldApp() {
                         onBack = { showMovementScreen = false },
                         onAbnormalMovementDetected = { type, confidence ->
                             println("🚨 Abnormal movement detected: $type ($confidence)")
+                        },
+                        // FIXED: Pass SOS trigger
+                        onTriggerSOS = { reason ->
+                            println("SOS Triggered by Movement: $reason")
+                            sosViewModel.sendSosAlert(context)
                         }
                     )
                 } else {
@@ -202,6 +213,11 @@ fun SheShieldApp() {
                             onBack = { showMovementScreen = false },
                             onAbnormalMovementDetected = { type, confidence ->
                                 println("🚨 Abnormal movement detected: $type ($confidence)")
+                            },
+                            // FIXED: Pass SOS trigger
+                            onTriggerSOS = { reason ->
+                                println("SOS Triggered by Movement: $reason")
+                                sosViewModel.sendSosAlert(context)
                             }
                         )
                     } else {
@@ -243,6 +259,11 @@ fun SheShieldApp() {
                         onBack = { showMovementScreen = false },
                         onAbnormalMovementDetected = { type, confidence ->
                             println("🚨 Abnormal movement detected: $type ($confidence)")
+                        },
+                        // FIXED: Pass SOS trigger
+                        onTriggerSOS = { reason ->
+                            println("SOS Triggered by Movement: $reason")
+                            sosViewModel.sendSosAlert(context)
                         }
                     )
                 } else {
@@ -302,12 +323,11 @@ fun UserModeApp(
             }
         },
         floatingActionButton = {
-            //if (showSwitchToHelper && onSwitchToHelperMode != null) {
+            if (showSwitchToHelper && onSwitchToHelperMode != null) {
                 FloatingActionButton(
                     onClick = {
-                        onSwitchToHelperMode?.invoke();
-                        //appMode = AppMode.HELPER; // wny error here? unresolved reference appMode
-                    }, //onSwitchToHelperMode,
+                        onSwitchToHelperMode.invoke()
+                    },
                     containerColor = Color(0xFF6200EE)
                 ) {
                     Icon(
@@ -316,7 +336,7 @@ fun UserModeApp(
                         tint = Color.White
                     )
                 }
-            //}
+            }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -468,7 +488,8 @@ fun HelperModeApp(
                         userData = userData
                     )
                 }
-                HelperScreen.ALERTS -> HelperAlertsContent(
+                HelperScreen.ALERTS -> HelperAlertsScreen(
+                    onBack = { currentScreen = HelperScreen.DASHBOARD },
                     onNavigateToMap = {
                         Toast.makeText(context, "Map Navigation", Toast.LENGTH_SHORT).show()
                     }

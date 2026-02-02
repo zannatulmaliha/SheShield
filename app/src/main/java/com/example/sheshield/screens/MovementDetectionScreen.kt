@@ -2,6 +2,7 @@ package com.example.sheshield.screens
 
 import android.Manifest
 import android.os.Build
+import android.os.CountDownTimer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,11 +33,14 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
+// --- Interface for SOS Trigger ---
+// You likely have this logic elsewhere, passing it in as a lambda
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MovementDetectionScreen(
     onBack: () -> Unit,
-    onAbnormalMovementDetected: (type: String, confidence: Float) -> Unit
+    onAbnormalMovementDetected: (type: String, confidence: Float) -> Unit,
+    onTriggerSOS: (String) -> Unit // New parameter for SOS
 ) {
     val context = LocalContext.current
     val movementViewModel: MovementViewModel = viewModel()
@@ -43,6 +48,39 @@ fun MovementDetectionScreen(
     // Collect state from ViewModel
     val movementState by movementViewModel.movementState.collectAsState()
     val permissionState by movementViewModel.permissionState.collectAsState()
+
+    // State for SOS Countdown Dialog
+    var showSOSCountdown by remember { mutableStateOf(false) }
+    var sosCountdownValue by remember { mutableIntStateOf(5) }
+    var detectedAnomalyType by remember { mutableStateOf("") }
+    var sosTimer: CountDownTimer? by remember { mutableStateOf(null) }
+
+    // Function to start SOS countdown
+    fun startSOSCountdown(anomalyType: String) {
+        if (showSOSCountdown) return // Already showing
+
+        detectedAnomalyType = anomalyType
+        showSOSCountdown = true
+        sosCountdownValue = 5
+
+        sosTimer?.cancel()
+        sosTimer = object : CountDownTimer(5000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                sosCountdownValue = (millisUntilFinished / 1000).toInt() + 1
+            }
+
+            override fun onFinish() {
+                showSOSCountdown = false
+                // Trigger the actual SOS
+                onTriggerSOS("Automatic SOS detected: $anomalyType")
+            }
+        }.start()
+    }
+
+    fun cancelSOS() {
+        sosTimer?.cancel()
+        showSOSCountdown = false
+    }
 
     // State for log filter
     var showLogFilterDialog by remember { mutableStateOf(false) }
@@ -72,6 +110,12 @@ fun MovementDetectionScreen(
         movementViewModel.initialize(context)
         movementViewModel.setAbnormalMovementCallback { type, confidence ->
             onAbnormalMovementDetected(type, confidence)
+
+            // AUTOMATIC SOS TRIGGER LOGIC
+            // Trigger if confidence is high (> 0.8) for critical events
+            if (confidence > 0.8f && (type == "SPRINT" || type == "UNUSUAL_ROTATION" || type == "SUDDEN_HALT")) {
+                startSOSCountdown(type)
+            }
         }
     }
 
@@ -123,6 +167,50 @@ fun MovementDetectionScreen(
                 movementViewModel.stopMonitoring()
             }
         }
+    }
+
+    // --- SOS Countdown Dialog ---
+    if (showSOSCountdown) {
+        AlertDialog(
+            onDismissRequest = { /* Prevent dismiss by tapping outside */ },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, null, tint = Color.Red)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Emergency Detected!", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Abnormal movement detected: $detectedAnomalyType")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "$sosCountdownValue",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Red
+                    )
+                    Text("Sending SOS in seconds...")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        cancelSOS() // Cancel timer first
+                        onTriggerSOS("Manual SOS confirmation: $detectedAnomalyType")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("SEND NOW")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { cancelSOS() }) {
+                    Text("I'M SAFE (CANCEL)")
+                }
+            },
+            containerColor = Color(0xFFFFEBEE)
+        )
     }
 
     Scaffold(
@@ -200,265 +288,6 @@ fun MovementDetectionScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
-
-                    // Log Summary
-                    // Replace the entire Movement Log section starting from line 210 with this:
-
-// Movement Log Section
-                    if (movementState.log.isNotEmpty()) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f), // Takes remaining space
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                // Header with filter
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "Movement Log",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp
-                                        )
-                                        Text(
-                                            text = "Showing ${filteredLogs.size} of ${movementState.log.size} entries",
-                                            fontSize = 12.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
-
-                                    // Filter Button
-                                    IconButton(
-                                        onClick = { showLogFilterDialog = true },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.FilterList,
-                                            contentDescription = "Filter",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-
-                                Divider(color = Color.Gray.copy(alpha = 0.3f))
-
-                                if (filteredLogs.isEmpty()) {
-                                    // Empty state for filtered logs
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Icon(
-                                                Icons.Default.FilterAltOff,
-                                                contentDescription = "No filtered logs",
-                                                tint = Color.Gray,
-                                                modifier = Modifier.size(48.dp)
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                "No logs in selected time range",
-                                                color = Color.Gray
-                                            )
-                                            TextButton(
-                                                onClick = { selectedTimeRange = TimeRange.ALL }
-                                            ) {
-                                                Text("Show All Logs")
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Log Table Header
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                                            .background(Color(0xFFF5F5F5)),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "#",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color.Gray,
-                                            modifier = Modifier.width(30.dp)
-                                        )
-                                        Text(
-                                            text = "Type",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color.Gray,
-                                            modifier = Modifier.weight(1.5f)
-                                        )
-                                        Text(
-                                            text = "Time",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color.Gray,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Text(
-                                            text = "Conf",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color.Gray,
-                                            modifier = Modifier.width(50.dp)
-                                        )
-                                    }
-
-                                    // Log List with Numbers
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        itemsIndexed(filteredLogs.reversed()) { index, log ->
-                                            val displayIndex = filteredLogs.size - index
-
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Number
-                                                Text(
-                                                    text = displayIndex.toString(),
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Color(0xFF6200EE),
-                                                    modifier = Modifier.width(30.dp)
-                                                )
-
-                                                // Type with icon
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.weight(1.5f)
-                                                ) {
-                                                    val (icon, color) = getMovementTypeIconAndColor(log.type)
-
-                                                    Icon(
-                                                        icon,
-                                                        contentDescription = log.type,
-                                                        tint = color,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = getMovementTypeDisplayName(log.type),
-                                                            fontSize = 14.sp,
-                                                            fontWeight = FontWeight.Medium,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                        Text(
-                                                            text = "Detected at ${formatTimestamp(log.timestamp)}",
-                                                            fontSize = 10.sp,
-                                                            color = Color.Gray
-                                                        )
-                                                    }
-                                                }
-
-                                                // Confidence
-                                                Box(
-                                                    modifier = Modifier
-                                                        .width(60.dp)
-                                                        .height(28.dp)
-                                                        .background(
-                                                            getConfidenceColor(log.confidence),
-                                                            RoundedCornerShape(8.dp)
-                                                        ),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = "${"%.0f".format(log.confidence * 100)}%",
-                                                        fontSize = 12.sp,
-                                                        color = Color.White,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                            }
-
-                                            if (index < filteredLogs.size - 1) {
-                                                Divider(
-                                                    color = Color.Gray.copy(alpha = 0.1f),
-                                                    thickness = 0.5.dp,
-                                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Add some bottom padding
-                                        item {
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Empty State - This should show when there are NO logs at all
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFF5F5F5)
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(32.dp)
-                                    .fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    Icons.Default.History,
-                                    contentDescription = "No logs",
-                                    tint = Color.Gray,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    "No movement logs yet",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Gray
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    "Start monitoring to detect and log abnormal movements",
-                                    fontSize = 14.sp,
-                                    color = Color.Gray,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { movementViewModel.startMonitoring() },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF4CAF50)
-                                    )
-                                ) {
-                                    Icon(Icons.Default.PlayArrow, "Start")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Start Monitoring")
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -584,11 +413,6 @@ fun MovementDetectionScreen(
                             fontSize = 14.sp,
                             color = Color(0xFF2E7D32).copy(alpha = 0.8f)
                         )
-                        Text(
-                            text = "Started ${formatTimeAgo(movementState.log.firstOrNull()?.timestamp ?: System.currentTimeMillis())} ago",
-                            fontSize = 12.sp,
-                            color = Color(0xFF2E7D32).copy(alpha = 0.6f)
-                        )
                     }
                 }
             }
@@ -598,7 +422,7 @@ fun MovementDetectionScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(300.dp), // Fixed height to ensure visibility
+                        .weight(1f), // Takes remaining space
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
@@ -670,44 +494,6 @@ fun MovementDetectionScreen(
                                 }
                             }
                         } else {
-                            // Log Table Header
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                                    .background(Color(0xFFF5F5F5)),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "#",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.width(30.dp)
-                                )
-                                Text(
-                                    text = "Type",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.weight(1.5f)
-                                )
-                                Text(
-                                    text = "Time",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    text = "Conf",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.width(50.dp)
-                                )
-                            }
-
                             // Log List with Numbers - FIXED: Using proper LazyColumn
                             LazyColumn(
                                 modifier = Modifier
@@ -802,55 +588,23 @@ fun MovementDetectionScreen(
                     }
                 }
             } else {
-                // Empty State - This should show when there are NO logs at all
+                // Empty State
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFF5F5F5)
-                    )
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
                 ) {
                     Column(
-                        modifier = Modifier
-                            .padding(32.dp)
-                            .fillMaxWidth(),
+                        modifier = Modifier.padding(32.dp).fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            Icons.Default.History,
-                            contentDescription = "No logs",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(64.dp)
-                        )
+                        Icon(Icons.Default.History, "No logs", tint = Color.Gray, modifier = Modifier.size(64.dp))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "No movement logs yet",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray
-                        )
+                        Text("No movement logs yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Start monitoring to detect and log abnormal movements",
-                            fontSize = 14.sp,
-                            color = Color.Gray,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { movementViewModel.startMonitoring() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4CAF50)
-                            )
-                        ) {
-                            Icon(Icons.Default.PlayArrow, "Start")
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Start Monitoring")
-                        }
+                        Text("Start monitoring to detect and log abnormal movements", fontSize = 14.sp, color = Color.Gray, textAlign = TextAlign.Center)
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 
@@ -862,54 +616,28 @@ fun MovementDetectionScreen(
             text = {
                 Column {
                     Text("Show logs from:", modifier = Modifier.padding(bottom = 8.dp))
-
                     TimeRange.entries.forEach { range ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clickable { selectedTimeRange = range },
+                                .clickable { selectedTimeRange = range }
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
-                                selected = selectedTimeRange == range,
-                                onClick = { selectedTimeRange = range }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = range.displayName,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                text = "(${countLogsInRange(movementState.log, range)})",
-                                color = Color.Gray,
-                                fontSize = 12.sp
-                            )
+                            RadioButton(selected = selectedTimeRange == range, onClick = { selectedTimeRange = range })
+                            Text(text = range.displayName, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
-
-                    // Custom Time Range (You can expand this later)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Custom range coming soon...",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = { showLogFilterDialog = false }
-                ) {
-                    Text("Close")
-                }
+                TextButton(onClick = { showLogFilterDialog = false }) { Text("Close") }
             }
         )
     }
 }
 
-// Helper functions for logs
+// ... (Rest of your helper functions: TimeRange, filterLogsByTimeRange, countLogsInRange, formatTimestamp, formatTimeAgo, getMovementTypeDisplayName, getMovementTypeIconAndColor, getConfidenceColor stay the same)
 enum class TimeRange(val displayName: String, val durationMs: Long?) {
     LAST_HOUR("Last Hour", 60 * 60 * 1000L),
     LAST_24_HOURS("Last 24 Hours", 24 * 60 * 60 * 1000L),
@@ -986,93 +714,5 @@ private fun getConfidenceColor(confidence: Float): Color {
         confidence >= 0.8f -> Color(0xFF4CAF50) // Green
         confidence >= 0.6f -> Color(0xFFFF9800) // Orange
         else -> Color(0xFFF44336) // Red
-    }
-}
-
-@Composable
-fun DetectionTypeItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    color: Color
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = color,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
-            )
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun PermissionRequestRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    permissionName: String,
-    description: String,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = permissionName,
-                tint = Color(0xFF616161),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = permissionName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = description,
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-            Button(
-                onClick = onClick,
-                modifier = Modifier.height(32.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1976D2)
-                )
-            ) {
-                Text(
-                    text = "Grant",
-                    fontSize = 12.sp
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Divider(color = Color(0xFFE0E0E0), thickness = 0.5.dp)
     }
 }

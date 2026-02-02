@@ -1,6 +1,5 @@
 package com.example.sheshield
 
-
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -37,14 +36,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.screens.*
-
 import com.example.sheshield.SOS.*
 import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.ui.screens.TimedCheckIn
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.android.gms.location.LocationServices
 import com.example.sheshield.R
-
 import com.example.sheshield.services.VoiceCommandService
 import com.example.sheshield.services.AudioRecorderService
 import com.example.sheshield.screens.TrackRouteScreen
@@ -60,6 +57,7 @@ fun HomeScreen(
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     var showMovementScreen by remember { mutableStateOf(false) }
+    val context = LocalContext.current // Get context for SOS
 
     // Collect movement state
     val movementState by movementViewModel.movementState.collectAsState()
@@ -72,9 +70,6 @@ fun HomeScreen(
             onCardTwoClick = { onCardTwoClick() },
             onCardFiveClick = { onCardFiveClick() },
             onMovementScreenClick = { showMovementScreen = true }
-          //  onCardOneClick = { currentScreen = "trackRoute" },
-        //    onCardTwoClick = { currentScreen = "timedCheckIn" },
-       //     onCardFiveClick = { currentScreen = "responders" }
         )
         "timedCheckIn" -> TimedCheckIn(
             onNavigate = { currentScreen = it },
@@ -94,6 +89,11 @@ fun HomeScreen(
             onBack = { showMovementScreen = false },
             onAbnormalMovementDetected = { type, confidence ->
                 println("🚨 Abnormal movement detected: $type ($confidence)")
+            },
+            // FIXED: Connected the SOS trigger from Movement Detection to SosViewModel
+            onTriggerSOS = { reason ->
+                println("SOS Triggered by Movement: $reason")
+                sosViewModel.sendSosAlert(context)
             }
         )
     }
@@ -200,7 +200,7 @@ fun HomeContent(
     ) {
         top_bar()
 
-        // VOICE PROTECTION CARD - NEW
+        // VOICE PROTECTION CARD
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -529,6 +529,7 @@ fun HomeContent(
     }
 }
 
+// ... (safe_box, top_bar, and cardOne - cardFive functions remain unchanged)
 @Composable
 fun safe_box() {
     Column(
