@@ -1,16 +1,14 @@
 package com.example.sheshield
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -149,7 +147,6 @@ fun SheShieldApp() {
             },
             onSwitchToHelperMode = {
                 // Not needed here, handled by userType selection
-
             }
         )
     }
@@ -302,12 +299,12 @@ fun UserModeApp(
             }
         },
         floatingActionButton = {
-            //if (showSwitchToHelper && onSwitchToHelperMode != null) {
+            if (showSwitchToHelper && onSwitchToHelperMode != null) {
                 FloatingActionButton(
                     onClick = {
-                        onSwitchToHelperMode?.invoke();
-                        //appMode = AppMode.HELPER; // wny error here? unresolved reference appMode
-                    }, //onSwitchToHelperMode,
+                        // FIX 2: Just call the function. Don't try to set appMode here.
+                        onSwitchToHelperMode()
+                    },
                     containerColor = Color(0xFF6200EE)
                 ) {
                     Icon(
@@ -316,7 +313,7 @@ fun UserModeApp(
                         tint = Color.White
                     )
                 }
-            //}
+            }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {

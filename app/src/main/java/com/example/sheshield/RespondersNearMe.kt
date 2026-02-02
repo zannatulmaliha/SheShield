@@ -1,64 +1,233 @@
 package com.example.sheshield
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
+import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sheshield.ui.theme.SheShieldTheme
+import androidx.core.app.ActivityCompat
+import com.example.sheshield.models.UserData
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun RespondersNearMeScreen(onBackClick: () -> Unit = {}) {
-    val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val userId = auth.currentUser?.uid
 
-    Surface(
-        color = Color(0xFFF6F7FB),
-        modifier = Modifier.fillMaxSize()
-    ) {
+    // --- STATES ---
+    var radiusKm by remember { mutableFloatStateOf(10f) } // Default 10km
+    var myLocation by remember { mutableStateOf<Location?>(null) }
+    val nearbyHelpers = remember { mutableStateListOf<UserData>() }
+    var helperCountInDb by remember { mutableIntStateOf(0) }
+
+    // --- 1. SYNC RADIUS FROM FIRESTORE (Persistence Fix) ---
+    LaunchedEffect(Unit) {
+        if (userId != null) {
+            db.collection("users").document(userId).get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        // Retrieve saved "searchRadius"
+                        val savedRadius = document.getDouble("searchRadius")?.toFloat()
+                        if (savedRadius != null) {
+                            radiusKm = savedRadius
+                        }
+                    }
+                }
+        }
+    }
+
+    // --- 2. AUTO-SAVE RADIUS TO FIRESTORE ---
+    LaunchedEffect(radiusKm) {
+        if (userId != null) {
+            delay(1000) // Debounce: wait 1 sec after sliding stops
+            db.collection("users").document(userId)
+                .update("searchRadius", radiusKm)
+        }
+    }
+
+    // 3. GET USER LOCATION
+    LaunchedEffect(Unit) {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.getFusedLocationProviderClient(context).lastLocation
+                .addOnSuccessListener { loc ->
+                    myLocation = loc
+                    Log.d("Responders", "User Location: ${loc?.latitude}, ${loc?.longitude}")
+                }
+        }
+    }
+
+    // 4. QUERY FIRESTORE FOR ACTIVE HELPERS
+    LaunchedEffect(myLocation, radiusKm) {
+        if (myLocation != null) {
+            db.collection("users")
+                .whereEqualTo("isActive", true)
+                .addSnapshotListener { snapshots, e ->
+                    if (e != null) return@addSnapshotListener
+
+                    nearbyHelpers.clear()
+                    if (snapshots != null) {
+                        helperCountInDb = snapshots.size()
+
+                        for (doc in snapshots) {
+                            try {
+                                val helper = doc.toObject(UserData::class.java)
+                                val locMap = helper.location
+
+                                if (locMap != null) {
+                                    val hLoc = Location("helper")
+                                    val lat = (locMap["latitude"] as? Number)?.toDouble() ?: 0.0
+                                    val lng = (locMap["longitude"] as? Number)?.toDouble() ?: 0.0
+
+                                    hLoc.latitude = lat
+                                    hLoc.longitude = lng
+
+                                    val distance = myLocation!!.distanceTo(hLoc) / 1000
+
+                                    // Add to list if within radius
+                                    if (distance <= radiusKm) {
+                                        nearbyHelpers.add(helper)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("Responders", "Error parsing helper", e)
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    Scaffold(
+        topBar = { TopBarResponders(onBackClick) },
+        containerColor = Color(0xFFF6F7FB)
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(bottom = 35.dp)
+                .padding(padding)
         ) {
-            // Pass the back click event to the Top Bar
-            TopBarResponders(onBackClick)
+            // MAP SECTION
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(Color(0xFFEAF0FF))
+            ) {
+                if (myLocation != null) {
+                    val cameraPositionState = rememberCameraPositionState {
+                        position = CameraPosition.fromLatLngZoom(
+                            LatLng(myLocation!!.latitude, myLocation!!.longitude), 13f
+                        )
+                    }
 
-            Spacer(Modifier.height(10.dp))
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        uiSettings = MapUiSettings(zoomControlsEnabled = true)
+                    ) {
+                        // User Marker
+                        Marker(
+                            state = MarkerState(position = LatLng(myLocation!!.latitude, myLocation!!.longitude)),
+                            title = "You",
+                            icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE)
+                        )
 
-            Column(
-                modifier = Modifier.padding(25.dp),
+                        // Helper Markers
+                        nearbyHelpers.forEach { helper ->
+                            val lat = (helper.location?.get("latitude") as? Number)?.toDouble() ?: 0.0
+                            val lng = (helper.location?.get("longitude") as? Number)?.toDouble() ?: 0.0
+                            Marker(
+                                state = MarkerState(position = LatLng(lat, lng)),
+                                title = helper.name,
+                                snippet = "Tap card below to call"
+                            )
+                        }
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF6000E9))
+                        Text("Locating you...", Modifier.padding(top = 40.dp), color = Color.Gray)
+                    }
+                }
+            }
+
+            // LIST SECTION
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // REPLACED THE PLACEHOLDER WITH THE ACTUAL MAP
-                MapSection()
 
-                RadiusSelector()
+                item {
+                    RadiusSelector(radiusKm) { newRadius -> radiusKm = newRadius }
+                }
 
-                StatsRow()
+                item {
+                    StatsRow(
+                        available = nearbyHelpers.size.toString(),
+                        total = helperCountInDb.toString()
+                    )
+                }
 
-                HowItWorksCard()
+                item { HowItWorksCard() }
 
-                ResponderList()
+                item {
+                    Text("Nearby Responders (${nearbyHelpers.size})", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
 
-                BecomeHelperCard()
+                if (nearbyHelpers.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                            Text("No active responders found within ${radiusKm.toInt()}km.", color = Color.Gray)
+                        }
+                    }
+                } else {
+                    items(nearbyHelpers) { helper ->
+                        val distStr = if (myLocation != null && helper.location != null) {
+                            val lat = (helper.location["latitude"] as? Number)?.toDouble() ?: 0.0
+                            val lng = (helper.location["longitude"] as? Number)?.toDouble() ?: 0.0
+                            val hLoc = Location("").apply { latitude = lat; longitude = lng }
+                            val d = myLocation!!.distanceTo(hLoc) / 1000
+                            String.format("%.1f km", d)
+                        } else "Unknown"
 
-                Spacer(Modifier.height(16.dp))
+                        ResponderCardReal(helper, distStr, context)
+                    }
+                }
+
+                item { BecomeHelperCard() }
+                item { Spacer(Modifier.height(20.dp)) }
             }
         }
     }
@@ -70,168 +239,70 @@ fun RespondersNearMeScreen(onBackClick: () -> Unit = {}) {
 fun TopBarResponders(onBackClick: () -> Unit) {
     Surface(
         color = Color(0xFF6000E9),
-        shape = RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = 15.dp,
-            bottomEnd = 15.dp
-        ),
-        modifier = Modifier
-            .padding(top = 30.dp)
-            .fillMaxWidth()
+        shape = RoundedCornerShape(bottomStart = 15.dp, bottomEnd = 15.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(all = 10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Text(
-                    text = "Responders Near Me",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-// ---------------- MAP SECTION (NEW) ----------------
-
-@Composable
-fun MapSection() {
-    // 1. Define a center point (e.g., Dhaka/Current Location)
-    val centerLocation = LatLng(23.8103, 90.4125)
-
-    // 2. Define fake locations for responders around the center
-    val responderLocations = listOf(
-        LatLng(23.8123, 90.4145), // North East
-        LatLng(23.8083, 90.4105), // South West
-        LatLng(23.8143, 90.4100), // North West
-        LatLng(23.8090, 90.4160)  // South East
-    )
-
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(centerLocation, 14.5f)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp) // Increased height slightly for better view
-            .clip(RoundedCornerShape(20.dp)) // Clips the map to rounded corners
-            .border(1.dp, Color.LightGray, RoundedCornerShape(20.dp))
-    ) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            uiSettings = MapUiSettings(
-                zoomControlsEnabled = false,
-                mapToolbarEnabled = false,
-                myLocationButtonEnabled = false
-            )
+        Row(
+            modifier = Modifier
+                .padding(top = 40.dp, bottom = 15.dp, start = 10.dp, end = 10.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Marker for "You" (Center)
-            Marker(
-                state = MarkerState(position = centerLocation),
-                title = "You",
-                snippet = "Current Location"
-            )
-
-            // Custom Profile Markers for Responders
-            responderLocations.forEachIndexed { index, latLng ->
-                MarkerComposable(
-                    state = MarkerState(position = latLng),
-                    title = "Responder ${index + 1}"
-                ) {
-                    ResponderMapMarker(index)
-                }
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
             }
+            Text("Responders Near Me", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-    }
-}
-
-// Custom UI for the Map Marker (Looks like a profile bubble)
-@Composable
-fun ResponderMapMarker(index: Int) {
-    val colors = listOf(Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800), Color(0xFF9C27B0))
-    val color = colors[index % colors.size]
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .background(Color.White, CircleShape)
-            .padding(3.dp) // White border effect
-            .clip(CircleShape)
-            .background(color),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "R${index + 1}",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
-        )
     }
 }
 
 // ---------------- RADIUS SLIDER ----------------
 
 @Composable
-fun RadiusSelector() {
+fun RadiusSelector(currentRadius: Float, onRadiusChange: (Float) -> Unit) {
     Column {
-        Text("Search Radius", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Search Radius", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("${currentRadius.toInt()} km", fontSize = 14.sp, color = Color(0xFF6000E9), fontWeight = FontWeight.Bold)
+        }
         Spacer(Modifier.height(6.dp))
 
-        var radius by remember { mutableFloatStateOf(2f) }
-
         Slider(
-            value = radius,
-            onValueChange = { radius = it },
-            valueRange = 1f..5f,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF6000E9),
-                activeTrackColor = Color(0xFF6000E9)
-            )
+            value = currentRadius,
+            onValueChange = onRadiusChange,
+            valueRange = 1f..50f,
+            colors = SliderDefaults.colors(thumbColor = Color(0xFF6000E9), activeTrackColor = Color(0xFF6000E9)),
+            modifier = Modifier.fillMaxWidth()
         )
-        Text("${radius.toInt()} km", fontSize = 14.sp, color = Color.Gray)
     }
 }
 
+// ---------------- STATS (Corrected) ----------------
+
 @Composable
-fun StatsRow() {
+fun StatsRow(available: String, total: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(15.dp)
     ) {
-        Box(Modifier.weight(1f)) { StatBox("4", "Available", Color(0xFFD9FBE5)) }
-        Box(Modifier.weight(1f)) { StatBox("5", "Total Nearby", Color(0xFFEAF0FF)) }
-        Box(Modifier.weight(1f)) { StatBox("< 5 min", "Response", Color(0xFFFFE3F3)) }
+        StatBox(available, "Nearby", Color(0xFFD9FBE5))
+        StatBox(total, "Total Active", Color(0xFFEAF0FF))
+        StatBox("5 min", "Avg Time", Color(0xFFFFE3F3))
     }
 }
 
 @Composable
-fun StatBox(value: String, label: String, bg: Color) {
+fun RowScope.StatBox(value: String, label: String, bg: Color) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .weight(1f)
             .background(bg, RoundedCornerShape(16.dp))
             .border(1.dp, Color.Transparent, RoundedCornerShape(16.dp))
-            .padding(vertical = 16.dp, horizontal = 4.dp),
+            .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
+        Text(label, fontSize = 12.sp, color = Color.Gray)
     }
 }
 
@@ -244,49 +315,27 @@ fun HowItWorksCard() {
             .fillMaxWidth()
             .background(Color.White, RoundedCornerShape(15.dp))
             .border(1.dp, Color(0xFFE3E3E3), RoundedCornerShape(15.dp))
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
-        Text(
-            "How It Works",
-            fontSize = 16.sp,
-            color = Color(0xFF7B2CFF),
-            fontWeight = FontWeight.Bold
-        )
+        Text("How It Works", fontSize = 16.sp, color = Color(0xFF6000E9), fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text(
-            "When you activate SOS, verified helpers nearby will be notified " +
-                    "and can choose to respond. All helpers are verified and rated.",
+            "When you activate SOS, verified helpers nearby will be notified. Icons on the map update in real-time.",
             fontSize = 14.sp,
-            color = Color.Gray,
-            lineHeight = 20.sp
+            color = Color.Gray
         )
     }
 }
 
-// ---------------- RESPONDER LIST ----------------
+// ---------------- RESPONDER CARD ----------------
 
 @Composable
-fun ResponderList() {
-    Column {
-        Text("Nearby Responders", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(10.dp))
-        ResponderCard("MD Shirajul Islam", "0.5 km", "3–5 min", "Available")
-        Spacer(Modifier.height(12.dp))
-        ResponderCard("Nilufar Yasmin", "0.7 km", "4–6 min", "Available")
-        Spacer(Modifier.height(12.dp))
-        ResponderCard("AK Himel", "1.2 km", "5–8 min", "Busy")
-        Spacer(Modifier.height(12.dp))
-        ResponderCard("Mahmud", "1.5 km", "6–10 min", "Available")
-    }
-}
-
-@Composable
-fun ResponderCard(name: String, distance: String, time: String, status: String) {
+fun ResponderCardReal(helper: UserData, distance: String, context: Context) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White, RoundedCornerShape(14.dp))
-            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+            .border(1.dp, Color.LightGray, RoundedCornerShape(14.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -297,48 +346,36 @@ fun ResponderCard(name: String, distance: String, time: String, status: String) 
                 .background(Color(0xFFEEE6FF)),
             contentAlignment = Alignment.Center
         ) {
-            val initials = if (name.contains(" ")) {
-                "${name.first()}${name.split(" ").last().first()}"
-            } else {
-                name.take(2)
-            }
-            Text(
-                text = initials,
-                fontSize = 16.sp,
-                color = Color(0xFF6B20D8),
-                fontWeight = FontWeight.Bold
-            )
+            val initials = if (helper.name.isNotBlank()) helper.name.take(1) else "?"
+            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6000E9))
         }
 
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(name, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text("$distance • $time", fontSize = 12.sp, color = Color.Gray)
+            Text(helper.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("$distance away", fontSize = 13.sp, color = Color.Gray)
         }
 
-        StatusTag(status)
+        IconButton(
+            onClick = {
+                if (helper.phone.isNotBlank()) {
+                    val intent = Intent(Intent.ACTION_DIAL).apply {
+                        data = Uri.parse("tel:${helper.phone}")
+                    }
+                    context.startActivity(intent)
+                } else {
+                    Toast.makeText(context, "No phone number", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .background(Color(0xFFE8F5E9), CircleShape)
+                .size(40.dp)
+        ) {
+            Icon(Icons.Default.Call, "Call", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+        }
     }
 }
-
-@Composable
-fun StatusTag(status: String) {
-    val (bgColor, textColor) = when (status) {
-        "Available" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
-        "Busy" -> Color(0xFFFFEBEE) to Color(0xFFC62828)
-        else -> Color(0xFFF5F5F5) to Color.Gray
-    }
-
-    Box(
-        modifier = Modifier
-            .background(bgColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
-    ) {
-        Text(status, fontSize = 12.sp, color = textColor, fontWeight = FontWeight.Medium)
-    }
-}
-
-// ---------------- BECOME A HELPER ----------------
 
 @Composable
 fun BecomeHelperCard() {
@@ -347,38 +384,21 @@ fun BecomeHelperCard() {
             .fillMaxWidth()
             .background(Color(0xFFE9FFE7), RoundedCornerShape(15.dp))
             .border(1.dp, Color(0xFFC8E6C9), RoundedCornerShape(15.dp))
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         Text("Want to Help Others?", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text(
-            "Join our verified helper network and make a difference.",
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
+        Text("Join our verified helper network.", fontSize = 14.sp, color = Color.Gray)
         Spacer(Modifier.height(12.dp))
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF4CAF50), RoundedCornerShape(12.dp))
-                .padding(12.dp)
-                .clickable { },
+                .clickable { }
+                .padding(12.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                "Apply to be a Helper",
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Apply to be a Helper", color = Color.White, fontWeight = FontWeight.Bold)
         }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun PreviewResponders() {
-    SheShieldTheme {
-        RespondersNearMeScreen()
     }
 }
