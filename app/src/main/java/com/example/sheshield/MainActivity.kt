@@ -36,6 +36,7 @@ import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
+import com.example.sheshield.screens.AiHelpScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -353,7 +354,7 @@ fun UserModeApp(
                     onBack = { onDestinationChange(AppDestinations.PROFILE) }
                 )
                 AppDestinations.MAP -> GeneralMapScreen()
-                AppDestinations.AI -> Text("AI Help Screen")
+                AppDestinations.AI -> AiHelpScreen()
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
                     onLogout = onLogout,
