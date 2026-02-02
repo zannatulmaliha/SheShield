@@ -1,5 +1,6 @@
 package com.example.sheshield
 
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -19,9 +20,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,19 +39,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.screens.*
 import com.example.sheshield.SOS.*
 import com.example.sheshield.SOS.SosViewModel
+import com.example.sheshield.screens.*
 import com.example.sheshield.ui.screens.TimedCheckIn
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.android.gms.location.LocationServices
 import com.example.sheshield.R
 import com.example.sheshield.services.VoiceCommandService
-import com.example.sheshield.services.AudioRecorderService
 import com.example.sheshield.screens.TrackRouteScreen
 
 @Composable
 fun HomeScreen(
     movementViewModel: MovementViewModel,
     sosViewModel: SosViewModel = viewModel(),
-    onCardOneClick: () -> Unit,
+    onCardOneClick: () -> Unit, // Kept for compatibility
     onCardTwoClick: () -> Unit,
     onCardFiveClick: () -> Unit,
     onMovementScreenClick: () -> Unit
@@ -62,17 +63,20 @@ fun HomeScreen(
     // Collect movement state
     val movementState by movementViewModel.movementState.collectAsState()
 
+    // MASTER NAVIGATION SWITCH
     when (currentScreen) {
         "home" -> HomeContent(
             sosViewModel = sosViewModel,
             movementViewModel = movementViewModel,
-            onCardOneClick = { onCardOneClick() },
-            onCardTwoClick = { onCardTwoClick() },
-            onCardFiveClick = { onCardFiveClick() },
+            // --- LOCAL NAVIGATION LOGIC ---
+            onCardOneClick = { currentScreen = "trackRoute" },
+            onCardTwoClick = { currentScreen = "timedCheckIn" },
+            onCardFiveClick = { currentScreen = "responders" },
+            // ------------------------------
             onMovementScreenClick = { showMovementScreen = true }
         )
         "timedCheckIn" -> TimedCheckIn(
-            onNavigate = { currentScreen = it },
+            onNavigate = { currentScreen = it }, // Handles "home" or other destinations
             onBack = { currentScreen = "home" }
         )
         "responders" -> RespondersNearMeScreen(
@@ -125,9 +129,8 @@ fun HomeContent(
         sosViewModel.initLocationClient(context)
     }
 
-    // Permission launcher
+    // Permission launcher for SOS
     var permissionsGranted by remember { mutableStateOf(false) }
-
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -147,7 +150,6 @@ fun HomeContent(
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
-            // Start voice service
             VoiceCommandService.start(context)
             isVoiceEnabled = true
             prefs.edit().putBoolean("voice_protection_enabled", true).apply()
@@ -161,22 +163,12 @@ fun HomeContent(
     LaunchedEffect(sosState) {
         if (sosState == SosState.SENT) {
             val hasSmsPermission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.SEND_SMS
+                context, Manifest.permission.SEND_SMS
             ) == PackageManager.PERMISSION_GRANTED
 
             val hasLocationPermission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                context, Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
-            val intent = Intent(context, AudioRecorderService::class.java)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
-
 
             if (hasSmsPermission && hasLocationPermission) {
                 sosViewModel.sendSosAlert(context)
@@ -201,6 +193,7 @@ fun HomeContent(
         top_bar()
 
         // VOICE PROTECTION CARD
+        // --- VOICE PROTECTION CARD ---
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -236,10 +229,8 @@ fun HomeContent(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        if (isVoiceEnabled)
-                            "🎤 Active - Say \"Help me\" or \"Emergency\""
-                        else
-                            "Enable hands-free SOS trigger",
+                        if (isVoiceEnabled) "🎤 Active - Say \"Help me\" or \"Emergency\""
+                        else "Enable hands-free SOS trigger",
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
@@ -249,20 +240,15 @@ fun HomeContent(
                     checked = isVoiceEnabled,
                     onCheckedChange = { enabled ->
                         if (enabled) {
-                            // Request voice permissions
-                            val voicePerms = mutableListOf(
-                                Manifest.permission.RECORD_AUDIO
-                            )
+                            val voicePerms = mutableListOf(Manifest.permission.RECORD_AUDIO)
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 voicePerms.add(Manifest.permission.POST_NOTIFICATIONS)
                             }
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                                 voicePerms.add(Manifest.permission.FOREGROUND_SERVICE)
                             }
-
                             voicePermissionLauncher.launch(voicePerms.toTypedArray())
                         } else {
-                            // Stop voice service
                             VoiceCommandService.stop(context)
                             isVoiceEnabled = false
                             prefs.edit().putBoolean("voice_protection_enabled", false).apply()
@@ -278,7 +264,7 @@ fun HomeContent(
             }
         }
 
-        // Show alert message
+        // --- ALERT MESSAGES ---
         alertMessage?.let { message ->
             Box(
                 modifier = Modifier
@@ -288,9 +274,7 @@ fun HomeContent(
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = if (message.contains("✓") || message.contains("Sent"))
-                            Color(0xFF4CAF50)
-                        else
-                            Color(0xFFFF5252)
+                            Color(0xFF4CAF50) else Color(0xFFFF5252)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -304,15 +288,13 @@ fun HomeContent(
             }
         }
 
-        // Movement Monitoring Status
+        // --- MOVEMENT MONITORING STATUS ---
         if (movementState.isActive) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 25.dp, vertical = 10.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFE8F5E9)
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
                 shape = RoundedCornerShape(12.dp),
                 onClick = onMovementScreenClick
             ) {
@@ -361,7 +343,7 @@ fun HomeContent(
             }
         }
 
-        // SOS Button Section
+        // --- SOS BUTTON SECTION ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -370,22 +352,14 @@ fun HomeContent(
         ) {
             when (sosState) {
                 SosState.IDLE, SosState.CANCELLED -> {
-                    SosButton {
-                        sosViewModel.startSos()
-                    }
+                    SosButton { sosViewModel.startSos() }
                 }
-
                 SosState.COUNTDOWN -> {
                     SosCountDown(
-                        onFinish = {
-                            // Will be handled by LaunchedEffect
-                        },
-                        onCancel = {
-                            sosViewModel.cancelSos()
-                        }
+                        onFinish = { /* Handled by LaunchedEffect */ },
+                        onCancel = { sosViewModel.cancelSos() }
                     )
                 }
-
                 SosState.SENDING -> {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3)),
@@ -397,20 +371,11 @@ fun HomeContent(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             CircularProgressIndicator(color = Color.White)
-                            Text(
-                                "Sending SOS Alerts...",
-                                fontSize = 18.sp,
-                                color = Color.White
-                            )
-                            Text(
-                                "SMS • Email • Notifications",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                            Text("Sending SOS Alerts...", fontSize = 18.sp, color = Color.White)
+                            Text("SMS • Email • Notifications", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
                         }
                     }
                 }
-
                 SosState.SENT_SUCCESS -> {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50)),
@@ -420,26 +385,17 @@ fun HomeContent(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                "✓ SOS Alert Sent!",
-                                fontSize = 24.sp,
-                                color = Color.White
-                            )
+                            Text("✓ SOS Alert Sent!", fontSize = 24.sp, color = Color.White)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Your emergency contacts have been notified",
-                                fontSize = 14.sp,
-                                color = Color.White
-                            )
+                            Text("Your emergency contacts have been notified", fontSize = 14.sp, color = Color.White)
                         }
                     }
                 }
-
                 else -> {}
             }
         }
 
-        // Quick Action Cards
+        // --- QUICK ACTION CARDS ---
         Column(
             modifier = Modifier.padding(25.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -480,10 +436,7 @@ fun HomeContent(
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (movementState.isActive)
-                        Color(0xFF2E7D32)
-                    else
-                        Color(0xFF6200EE)
+                    containerColor = if (movementState.isActive) Color(0xFF2E7D32) else Color(0xFF6200EE)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -498,27 +451,17 @@ fun HomeContent(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        if (movementState.isActive)
-                            "Monitoring Active"
-                        else
-                            "Movement Detection",
+                        if (movementState.isActive) "Monitoring Active" else "Movement Detection",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
                     Text(
-                        if (movementState.isActive)
-                            "Tap to view details & history"
-                        else
-                            "Monitor abnormal movements",
+                        if (movementState.isActive) "Tap to view details & history" else "Monitor abnormal movements",
                         fontSize = 12.sp
                     )
                 }
                 if (movementState.isActive) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(Color.Red, CircleShape)
-                    )
+                    Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape))
                 }
             }
 
@@ -529,17 +472,15 @@ fun HomeContent(
     }
 }
 
+// --- HELPER COMPOSABLES ---
+
 // ... (safe_box, top_bar, and cardOne - cardFive functions remain unchanged)
 @Composable
 fun safe_box() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = Color(0xFFFFBF00),
-                shape = RoundedCornerShape(15.dp)
-            )
+            .border(width = 1.dp, color = Color(0xFFFFBF00), shape = RoundedCornerShape(15.dp))
             .background(color = Color(0xFFFFFDE7), shape = RoundedCornerShape(15.dp))
             .padding(12.dp)
     ) {
@@ -568,14 +509,9 @@ fun top_bar() {
     Surface(
         color = Color(0xFF6000E9),
         shape = RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = 15.dp,
-            bottomEnd = 15.dp
+            topStart = 0.dp, topEnd = 0.dp, bottomStart = 15.dp, bottomEnd = 15.dp
         ),
-        modifier = Modifier
-            .padding(top = 30.dp)
-            .fillMaxWidth(1f)
+        modifier = Modifier.padding(top = 30.dp).fillMaxWidth(1f)
     ) {
         Column(Modifier.padding(all = 10.dp)) {
             Row {
@@ -589,7 +525,6 @@ fun top_bar() {
                     )
                     Text(text = "You're protected", color = Color.White, fontSize = 15.sp)
                 }
-
                 Spacer(Modifier.weight(1f))
                 Icon(
                     imageVector = Icons.Default.Settings,
@@ -600,15 +535,8 @@ fun top_bar() {
             }
             Surface(
                 color = Color(0xFF7A4BFA),
-                shape = RoundedCornerShape(
-                    topStart = 10.dp,
-                    topEnd = 10.dp,
-                    bottomStart = 10.dp,
-                    bottomEnd = 10.dp
-                ),
-                modifier = Modifier
-                    .padding(5.dp)
-                    .fillMaxWidth(1f),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.padding(5.dp).fillMaxWidth(1f),
             ) {
                 Row(
                     modifier = Modifier.padding(top = 20.dp, bottom = 10.dp),
@@ -617,9 +545,7 @@ fun top_bar() {
                     Image(
                         painter = image,
                         contentDescription = "Shield Picture",
-                        modifier = Modifier
-                            .width(65.dp)
-                            .height(65.dp)
+                        modifier = Modifier.width(65.dp).height(65.dp)
                     )
                     Column {
                         Text("Safety Status: Active", color = Color.White, fontWeight = FontWeight.Medium)
@@ -643,11 +569,8 @@ fun cardOne(onClick: () -> Unit) {
             .clickable { onClick() }
     ) {
         Image(
-            painter = image,
-            contentDescription = "location",
-            modifier = Modifier
-                .width(90.dp)
-                .height(90.dp)
+            painter = image, contentDescription = "location",
+            modifier = Modifier.width(90.dp).height(90.dp)
         )
         Column {
             Text("Track My Route", fontWeight = FontWeight.Medium)
@@ -668,11 +591,8 @@ fun cardTwo(onClick: () -> Unit) {
             .clickable { onClick() }
     ) {
         Image(
-            painter = image,
-            contentDescription = "Check in",
-            modifier = Modifier
-                .width(100.dp)
-                .height(100.dp)
+            painter = image, contentDescription = "Check in",
+            modifier = Modifier.width(100.dp).height(100.dp)
         )
         Column {
             Text("Timed Check-In", fontWeight = FontWeight.Medium)
@@ -692,11 +612,8 @@ fun cardThree() {
             .height(150.dp)
     ) {
         Image(
-            painter = image,
-            contentDescription = "sos",
-            modifier = Modifier
-                .width(90.dp)
-                .height(90.dp)
+            painter = image, contentDescription = "sos",
+            modifier = Modifier.width(90.dp).height(90.dp)
         )
         Column {
             Text("SOS Trigger", fontWeight = FontWeight.Medium)
@@ -716,15 +633,12 @@ fun cardFour() {
             .height(150.dp)
     ) {
         Image(
-            painter = image,
-            contentDescription = "map",
-            modifier = Modifier
-                .width(90.dp)
-                .height(90.dp)
+            painter = image, contentDescription = "map",
+            modifier = Modifier.width(90.dp).height(90.dp)
         )
         Column {
-            Text("Safety Map", fontWeight = FontWeight.Medium)
-            Text("View risk areas", color = Color.Gray, fontSize = 14.sp)
+            Text("Safety Analytics", fontWeight = FontWeight.Medium)
+            Text("Monitor safety patterns", color = Color.Gray, fontSize = 14.sp)
         }
     }
 }
@@ -741,11 +655,8 @@ fun cardFive(onClick: () -> Unit) {
             .clickable { onClick() }
     ) {
         Image(
-            painter = image,
-            contentDescription = "Responders",
-            modifier = Modifier
-                .width(90.dp)
-                .height(90.dp)
+            painter = image, contentDescription = "Responders",
+            modifier = Modifier.width(90.dp).height(90.dp)
         )
         Column {
             Text("Responders Near Me", fontWeight = FontWeight.Medium)

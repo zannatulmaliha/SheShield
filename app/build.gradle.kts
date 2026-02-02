@@ -17,7 +17,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "apiKey", "\"AIzaSyCH3dcmcysHxVkLgqfi5GcVL-31LyPItZw\"")
     }
 
     buildTypes {
@@ -40,7 +39,6 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true
         compose = true
     }
 }
@@ -98,6 +96,4 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    // Change back to 0.9.0
-    implementation("com.google.firebase:firebase-vertexai:16.0.0")
 }

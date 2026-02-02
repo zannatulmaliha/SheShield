@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sheshield.repository.ContactsRepository
+import com.example.sheshield.services.MovementDetectionService
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
@@ -48,6 +49,10 @@ class SosViewModel(
     private val _alertMessage = MutableStateFlow<String?>(null)
     val alertMessage: StateFlow<String?> = _alertMessage
 
+    // --- MOVEMENT DETECTION STATE ---
+    private val _showSafetyCheck = MutableStateFlow<String?>(null)
+    val showSafetyCheck: StateFlow<String?> = _showSafetyCheck
+
     private var sosJob: Job? = null
     private var fusedLocationClient: FusedLocationProviderClient? = null
 
@@ -56,6 +61,29 @@ class SosViewModel(
      */
     fun initLocationClient(context: Context) {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    /**
+     * Start monitoring sensors for abnormal movement
+     */
+    fun startMovementMonitoring(context: Context) {
+        MovementDetectionService.initialize(context)
+        MovementDetectionService.startMonitoring()
+
+        // Set callback: When danger is detected -> Trigger Safety Check Popup
+        MovementDetectionService.onAbnormalMovementDetected = { type, confidence ->
+            // Only trigger if confidence is high (>0.7) and not already in SOS mode
+            if (confidence > 0.7f && _showSafetyCheck.value == null && _sosState.value == SosState.IDLE) {
+                _showSafetyCheck.value = type
+            }
+        }
+    }
+
+    /**
+     * Called when user confirms safety on the popup
+     */
+    fun confirmSafety() {
+        _showSafetyCheck.value = null
     }
 
     /**
@@ -93,6 +121,9 @@ class SosViewModel(
      * MAIN FUNCTION: Send SOS Alert via SMS, Email, and Push Notifications
      */
     fun sendSosAlert(context: Context) {
+        // Dismiss safety popup if it was open
+        _showSafetyCheck.value = null
+
         viewModelScope.launch {
             try {
                 // Show sending state
@@ -112,14 +143,29 @@ class SosViewModel(
                 // 2. Get user location
                 val location = getLocation(context)
                 val locationString = if (location != null) {
-                    "https://www.google.com/maps?q=${location.latitude},${location.longitude}"
+                    "http://googleusercontent.com/maps.google.com/?q=${location.latitude},${location.longitude}"
                 } else {
                     "Location unavailable - GPS disabled or no permission"
                 }
 
-                // 3. Get user info
-                val currentUser = auth.currentUser
-                val userName = currentUser?.displayName ?: currentUser?.email ?: "A SheShield user"
+                // 3. Get user info (Robust Method to Fix Missing Name)
+                var userName = auth.currentUser?.displayName
+                val userId = auth.currentUser?.uid ?: return@launch
+
+                // Fallback: If Auth name is null, fetch from Firestore Profile
+                if (userName.isNullOrBlank()) {
+                    try {
+                        val userDoc = firestore.collection("users").document(userId).get().await()
+                        userName = userDoc.getString("name")
+                    } catch (e: Exception) {
+                        Log.e("SosViewModel", "Failed to fetch name from Firestore", e)
+                    }
+                }
+
+                // Final Fallback if name is still missing
+                if (userName.isNullOrBlank()) {
+                    userName = "SheShield User (${userId.take(4)})"
+                }
 
                 // 4. Create timestamp
                 val timestamp = java.text.SimpleDateFormat(
@@ -129,7 +175,7 @@ class SosViewModel(
 
                 // 5. Create SMS message (keep it short for SMS)
                 val smsMessage = """
-🚨 EMERGENCY - ${userName} needs help!
+🚨 EMERGENCY - $userName needs help!
 Time: $timestamp
 Location: $locationString
 Sent via SheShield
@@ -146,10 +192,8 @@ Sent via SheShield
                         val success = sendSMS(context, contact.phone, smsMessage)
                         if (success) {
                             smsCount++
-                            Log.d("SosViewModel", "SMS sent successfully to ${contact.name}: ${contact.phone}")
                         } else {
                             smsFailed++
-                            Log.e("SosViewModel", "SMS FAILED to ${contact.name}: ${contact.phone}")
                         }
                     }
                 }
@@ -159,7 +203,7 @@ Sent via SheShield
                 contacts.forEach { contact ->
                     if (contact.fcmToken != null) {
                         try {
-                            sendPushNotification(contact.fcmToken, userName, locationString)
+                            sendPushNotification(contact.fcmToken, userName!!, locationString)
                             pushCount++
                         } catch (e: Exception) {
                             Log.e("SosViewModel", "Push failed for ${contact.name}", e)
@@ -169,13 +213,14 @@ Sent via SheShield
 
                 // 8. Send Emails in background
                 try {
-                    sendEmailAlerts(contacts, userName, locationString, timestamp)
+                    sendEmailAlerts(contacts, userName!!, locationString, timestamp)
                 } catch (e: Exception) {
                     Log.e("SosViewModel", "Email sending failed", e)
                 }
 
-                // 9. Save to Firestore
-                saveSosToFirestore(contacts, locationString, userName)
+                // 9. Save to Firestore (Critical for Helper Dashboard)
+                // Pass the 'location' object so we can save lat/long properly
+                saveSosToFirestore(contacts, locationString, userName!!, location)
 
                 // 10. Show detailed success message
                 val message = buildString {
@@ -216,8 +261,6 @@ Sent via SheShield
                 return false
             }
 
-            Log.d("SosViewModel", "Attempting to send SMS to: $phoneNumber")
-
             // Get SmsManager
             val smsManager = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 context.getSystemService(SmsManager::class.java)
@@ -230,31 +273,12 @@ Sent via SheShield
             val parts = smsManager.divideMessage(message)
 
             if (parts.size > 1) {
-                Log.d("SosViewModel", "Sending multi-part SMS (${parts.size} parts)")
-                smsManager.sendMultipartTextMessage(
-                    phoneNumber,
-                    null,
-                    parts,
-                    null,
-                    null
-                )
+                smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
             } else {
-                Log.d("SosViewModel", "Sending single SMS")
-                smsManager.sendTextMessage(
-                    phoneNumber,
-                    null,
-                    message,
-                    null,
-                    null
-                )
+                smsManager.sendTextMessage(phoneNumber, null, message, null, null)
             }
-
-            Log.d("SosViewModel", "SMS sent successfully to $phoneNumber")
             true
 
-        } catch (e: SecurityException) {
-            Log.e("SosViewModel", "SecurityException: SMS permission denied", e)
-            false
         } catch (e: Exception) {
             Log.e("SosViewModel", "Exception sending SMS to $phoneNumber", e)
             false
@@ -273,13 +297,7 @@ Sent via SheShield
                 "senderName" to userName,
                 "location" to location
             )
-
-            functions
-                .getHttpsCallable("sendSOSNotification")
-                .call(data)
-                .await()
-
-            Log.d("SosViewModel", "Push notification sent successfully")
+            functions.getHttpsCallable("sendSOSNotification").call(data).await()
         } catch (e: Exception) {
             Log.e("SosViewModel", "Push notification failed", e)
         }
@@ -296,11 +314,7 @@ Sent via SheShield
     ) {
         try {
             val contactsWithEmail = contacts.filter { it.email.isNotBlank() }
-
-            if (contactsWithEmail.isEmpty()) {
-                Log.d("SosViewModel", "No contacts with email addresses")
-                return
-            }
+            if (contactsWithEmail.isEmpty()) return
 
             val emailData = hashMapOf(
                 "userName" to userName,
@@ -310,13 +324,7 @@ Sent via SheShield
                     mapOf("name" to it.name, "email" to it.email)
                 }
             )
-
-            functions
-                .getHttpsCallable("sendSOSEmails")
-                .call(emailData)
-                .await()
-
-            Log.d("SosViewModel", "Email function called successfully")
+            functions.getHttpsCallable("sendSOSEmails").call(emailData).await()
         } catch (e: Exception) {
             Log.e("SosViewModel", "Email sending failed", e)
         }
@@ -326,68 +334,31 @@ Sent via SheShield
      * Get current location - WITH FALLBACK
      */
     private suspend fun getLocation(context: Context): Location? {
-        // Check both FINE and COARSE location permissions
-        val hasFineLocation = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val hasCoarseLocation = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!hasFineLocation && !hasCoarseLocation) {
-            Log.w("SosViewModel", "No location permission granted")
-            return null
-        }
+        val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasFineLocation) return null
 
         return try {
             // First try: Get last known location
             var location = fusedLocationClient?.lastLocation?.await()
-
-            if (location != null) {
-                Log.d("SosViewModel", "Location obtained from cache: ${location.latitude}, ${location.longitude}")
-                return location
-            }
+            if (location != null) return location
 
             // Second try: Request fresh location update
-            Log.d("SosViewModel", "Last location was null, requesting fresh location...")
-
             location = withTimeoutOrNull(5000) {
                 suspendCancellableCoroutine { continuation ->
                     val locationRequest = com.google.android.gms.location.LocationRequest.create().apply {
                         priority = com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
-                        interval = 0
-                        fastestInterval = 0
                         numUpdates = 1
                     }
-
                     val callback = object : com.google.android.gms.location.LocationCallback() {
                         override fun onLocationResult(result: com.google.android.gms.location.LocationResult) {
                             val freshLocation = result.lastLocation
-                            if (freshLocation != null) {
-                                Log.d("SosViewModel", "Fresh location obtained: ${freshLocation.latitude}, ${freshLocation.longitude}")
-                                continuation.resume(freshLocation)
-                            } else {
-                                continuation.resume(null)
-                            }
+                            continuation.resume(freshLocation)
                             fusedLocationClient?.removeLocationUpdates(this)
                         }
                     }
-
-                    fusedLocationClient?.requestLocationUpdates(
-                        locationRequest,
-                        callback,
-                        android.os.Looper.getMainLooper()
-                    )
+                    fusedLocationClient?.requestLocationUpdates(locationRequest, callback, android.os.Looper.getMainLooper())
                 }
             }
-
-            if (location == null) {
-                Log.w("SosViewModel", "Could not get location (GPS may be off or no signal)")
-            }
-
             location
         } catch (e: Exception) {
             Log.e("SosViewModel", "Location fetch failed: ${e.message}", e)
@@ -396,25 +367,34 @@ Sent via SheShield
     }
 
     /**
-     * Save SOS alert to Firestore - FIXED for Helper Dashboard
+     * Save SOS alert to Firestore - FIXED for Helper Dashboard Integration
      */
     private suspend fun saveSosToFirestore(
         contacts: List<com.example.sheshield.models.Contact>,
         locationString: String,
-        userName: String
+        userName: String,
+        location: Location? // Added Location parameter for clean Map data
     ) {
         val userId = auth.currentUser?.uid ?: return
 
         // 1. Prepare data for the HELPER DASHBOARD (Public)
-        // IMPORTANT: status must be "active" (lowercase) to match the HelperService
+        //
         val globalAlertData = hashMapOf(
+            "userId" to userId,
             "userName" to userName,
             "description" to "SOS Alert triggered! Location: $locationString",
             "riskLevel" to "high",
-            "status" to "active",     // <--- LOWERCASE "active" is critical!
+            "status" to "active",     // Status "active" makes it visible on Helper Dashboard
+            "alertType" to "SOS",
             "timestamp" to System.currentTimeMillis(),
             "senderId" to userId,
-            "locationString" to locationString
+            "locationString" to locationString,
+            // CRITICAL: Helper Dashboard reads this map for the pin on Google Maps
+            "location" to mapOf(
+                "latitude" to (location?.latitude ?: 0.0),
+                "longitude" to (location?.longitude ?: 0.0),
+                "address" to locationString
+            )
         )
 
         // 2. Prepare data for User's History (Private)

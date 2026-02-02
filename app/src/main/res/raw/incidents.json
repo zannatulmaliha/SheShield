@@ -1,0 +1,142 @@
+[
+  
+  {
+    "id": "safe_gz_01",
+    "lat": 23.8215,
+    "lng": 90.4160,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Boardbazar Police Outpost: 24/7 Guarded."
+  },
+  {
+    "id": "safe_gz_02",
+    "lat": 23.9112,
+    "lng": 90.4225,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Shilmoon Specialized Hospital: 24/7 Open to Public, Medical Assistance Available."
+  },
+  {
+    "id": "safe_gz_03",
+    "lat": 23.9512,
+    "lng": 90.4025,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Gazipur City Corporation Office: Well-Lit, Guarded Area."
+  },
+  {
+    "id": "safe_dk_04",
+    "lat": 23.7330,
+    "lng": 90.3950,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Dhaka University Proctor Office: Campus Security Available."
+  },
+  {
+    "id": "safe_dk_05",
+    "lat": 23.7937,
+    "lng": 90.4048,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Banani Super Market: 24/7 Security, CCTV Monitored."
+  },
+  {
+    "id": "safe_dk_06",
+    "lat": 23.7531,
+    "lng": 90.3769,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Square Hospital Panthapath: Medical Assistance, Well-Lit."
+  },
+  {
+    "id": "safe_dk_07",
+    "lat": 23.7806,
+    "lng": 90.4193,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Gulshan 1 Police Box: 24/7 Guarded, CCTV Surveillance."
+  },
+
+
+  {
+    "id": "dang_gz_08",
+    "lat": 23.8975,
+    "lng": 90.4008,
+    "type": "POOR_LIGHTING",
+    "severity": 10,
+    "description": "Boardbazar Intersection: High Conflict Risk, especially after dark.",
+    "time": "2024-12-10T21:45:00"
+  },
+  {
+    "id": "dang_gz_09",
+    "lat": 23.9250,
+    "lng": 90.4140,
+    "type": "ASSAULT",
+    "severity": 8,
+    "description": "Gazipur: Narrow alleyway: Poor visibility, assault risk.",
+    "time": "2024-12-15T20:05:00"
+  },
+  {
+    "id": "dang_dk_10",
+    "lat": 23.7505,
+    "lng": 90.3923,
+    "type": "HARASSMENT",
+    "severity": 7,
+    "description": "Farmgate Bus Stand: Crowded/Harassment risk, especially during peak hours.",
+    "time": "2024-05-12T18:45:00"
+  },
+  {
+    "id": "dang_dk_11",
+    "lat": 23.7288,
+    "lng": 90.4174,
+    "type": "ASSAULT",
+    "severity": 9,
+    "description": "Motijheel Commercial Area: High risk of assault, especially at night.",
+    "time": "2024-06-03T21:10:00"
+  },
+  {
+    "id": "dang_dk_12",
+    "lat": 23.7621,
+    "lng": 90.3702,
+    "type": "THEFT",
+    "severity": 6,
+    "description": "Dhanmondi Lake (Walkway side): Pickpocketing reported frequently.",
+    "time": "2024-07-22T20:30:00"
+  },
+  {
+    "id": "dang_dk_13",
+    "lat": 23.7511,
+    "lng": 90.3686,
+    "type": "MUGGING",
+    "severity": 8,
+    "description": "Mohammadpur Shia Mosque area: High risk of mugging.",
+    "time": "2024-11-25T23:15:00"
+  },
+  {
+    "id": "dang_dk_14",
+    "lat": 23.7215,
+    "lng": 90.3956,
+    "type": "HARASSMENT",
+    "severity": 8,
+    "description": "Sadarghat Terminal: Crowd chaos, especially during ferry boarding times.",
+    "time": "2024-10-05T22:40:00"
+  },
+  {
+    "id": "dang_dk_15",
+    "lat": 23.8700,
+    "lng": 90.3900,
+    "type": "ASSAULT",
+    "severity": 5,
+    "description": "Uttara: Sector 11 Park side: Dark at night, occasional reports of assault.",
+    "time": "2024-11-15T19:00:00"
+  },
+  {
+    "id": "dang_dk_16",
+    "lat": 23.7779,
+    "lng": 90.3479,
+    "type": "HARASSMENT",
+    "severity": 5,
+    "description": "Gabtali: Harassment reported near bus stops.",
+    "time": "2024-11-15T19:00:00"
+  }
+]
