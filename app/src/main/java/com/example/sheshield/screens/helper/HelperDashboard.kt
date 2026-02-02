@@ -57,6 +57,7 @@ fun HelperDashboard(
     var selectedAlert by remember { mutableStateOf<Alert?>(null) }
     var helperLocation by remember { mutableStateOf<Location?>(null) }
 
+    // Loading state
     var isProcessing by remember { mutableStateOf(false) }
 
     val helperStats = remember {
@@ -138,10 +139,7 @@ fun HelperDashboard(
                             try {
                                 val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
 
-                                // === CRITICAL FIX: ENABLE SELF-RESCUE FOR TESTING ===
-                                // I removed "alert.userId != auth.currentUser?.uid"
-                                // Now you WILL see your own alerts.
-
+                                // Logic to show all valid alerts within timeframe (including self for testing)
                                 if (alert.timestamp > oneDayAgo &&
                                     (alert.location.latitude != 0.0 || alert.location.longitude != 0.0)) {
 
@@ -363,10 +361,19 @@ fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: Strin
     }
 }
 
-// --- UPDATED ALERT ITEM UI ---
+@Composable
+fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = onClick, modifier = Modifier.background(Color(0xFFF5F5F5), CircleShape)) {
+            Icon(icon, label, tint = Color(0xFF6200EE))
+        }
+        Text(label, fontSize = 12.sp)
+    }
+}
+
+// --- UPDATED AESTHETIC ALERT ITEM ---
 @Composable
 fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
-    // Calculate time elapsed
     val timeAgo = remember(alert.timestamp) {
         val diff = System.currentTimeMillis() - alert.timestamp
         val mins = TimeUnit.MILLISECONDS.toMinutes(diff)
@@ -376,26 +383,36 @@ fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp),
-        border = BorderStroke(1.dp, Color(0xFFFFCDD2))
+        elevation = CardDefaults.cardElevation(6.dp),
+        border = BorderStroke(1.5.dp, Color(0xFF1976D2)), // Blue Border
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Icon
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .background(Color(0xFFFFEBEE), CircleShape),
+                    .size(56.dp)
+                    .background(Color(0xFFE3F2FD), CircleShape), // Light Blue BG
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.NotificationsActive, null, tint = Color.Red)
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = "Alert",
+                    tint = Color(0xFFD32F2F), // Red Icon for Urgency
+                    modifier = Modifier.size(28.dp)
+                )
             }
 
             Spacer(Modifier.width(16.dp))
 
+            // Info Column
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = alert.userName.ifBlank { "SheShield User" },
@@ -404,43 +421,56 @@ fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
                     color = Color.Black
                 )
 
+                Spacer(Modifier.height(4.dp))
+
+                // Distance Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Place, null, tint = Color.Red, modifier = Modifier.size(14.dp))
-                    Text(" $distance away", fontSize = 14.sp, color = Color.Red, fontWeight = FontWeight.Bold)
-
-                    Spacer(Modifier.width(8.dp))
-
-                    Icon(Icons.Default.AccessTime, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
-                    Text(" $timeAgo", fontSize = 13.sp, color = Color.Gray)
+                    Icon(
+                        Icons.Default.Place,
+                        contentDescription = null,
+                        tint = Color(0xFF1976D2), // Blue Location Pin
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "$distance away",
+                        fontSize = 14.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = alert.location.address ?: "Location not available",
-                    fontSize = 12.sp,
-                    color = Color.DarkGray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+
+                // Time Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AccessTime,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = timeAgo,
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                }
             }
 
+            // Accept Button
             Button(
                 onClick = onAccept,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                shape = RoundedCornerShape(8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD32F2F), // Red Button
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(40.dp)
             ) {
-                Text("HELP")
+                Text("ACCEPT", fontWeight = FontWeight.Bold)
             }
         }
-    }
-}
-
-@Composable
-fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick, modifier = Modifier.background(Color(0xFFF5F5F5), CircleShape)) {
-            Icon(icon, label, tint = Color(0xFF6200EE))
-        }
-        Text(label, fontSize = 12.sp)
     }
 }
