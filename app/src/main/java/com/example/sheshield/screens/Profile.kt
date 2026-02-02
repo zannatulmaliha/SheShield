@@ -29,38 +29,13 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,12 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.rememberCoroutineScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import java.util.Locale
-
 
 // Country data class
 data class Country(
@@ -111,7 +84,14 @@ val countries = listOf(
 fun ProfileScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
-//    onNavigateToContacts: ()
+    onNavigateToContacts: () -> Unit,
+    onNavigateToSOS: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToPrivacy: () -> Unit,
+    onNavigateToDataStorage: () -> Unit,
+    onNavigateToHelpCenter: () -> Unit,
+    onNavigateToContactSupport: () -> Unit,
+    onNavigateToAbout: () -> Unit
 ) {
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
@@ -124,6 +104,10 @@ fun ProfileScreen(
     var userAddress by remember { mutableStateOf("") }
     var userName by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
+
+    // State for switches and settings
+    var isAppLockEnabled by remember { mutableStateOf(true) }
+    var isVoiceEnabled by remember { mutableStateOf(false) }
 
     // State for dialogs
     var showEmailDialog by remember { mutableStateOf(false) }
@@ -142,12 +126,16 @@ fun ProfileScreen(
                         userPhone = document.getString("phone") ?: ""
                         userAddress = document.getString("address") ?: ""
                         userName = document.getString("name") ?: "User"
+                        isAppLockEnabled = document.getBoolean("appLock") ?: true
+                        isVoiceEnabled = document.getBoolean("voiceProtection") ?: false
                     } else {
                         val userData = hashMapOf(
                             "email" to userEmail,
                             "phone" to "",
                             "address" to "",
                             "name" to userEmail.substringBefore("@"),
+                            "appLock" to true,
+                            "voiceProtection" to false,
                             "createdAt" to System.currentTimeMillis()
                         )
                         db.collection("users").document(userId).set(userData)
@@ -169,7 +157,7 @@ fun ProfileScreen(
     }
 
     // Save data to Firebase function
-    fun saveToFirebase(field: String, value: String) {
+    fun saveToFirebase(field: String, value: Any) {
         val userId = auth.currentUser?.uid ?: return
 
         val updateData = hashMapOf<String, Any>(
@@ -182,7 +170,7 @@ fun ProfileScreen(
             .addOnSuccessListener {
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        "✅ $field updated successfully!",
+                        "✅ Updated successfully!",
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -190,7 +178,7 @@ fun ProfileScreen(
             .addOnFailureListener { e ->
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        "❌ Failed to update $field",
+                        "❌ Failed to update",
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -278,19 +266,41 @@ fun ProfileScreen(
                         )
 
                         Text("SAFETY SETTINGS", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        safety_settings()
+                        safety_settings(
+                            onSOSClick = onNavigateToSOS,
+                            onContactsClick = onNavigateToContacts,
+                            onNotificationsClick = onNavigateToNotifications
+                        )
+
                         Text("PRIVACY & SECURITY", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        privacy_security()
+                        privacy_security(
+                            onPrivacyClick = onNavigateToPrivacy,
+                            onDataStorageClick = onNavigateToDataStorage,
+                            isAppLockEnabled = isAppLockEnabled,
+                            onAppLockToggle = { enabled ->
+                                isAppLockEnabled = enabled
+                                saveToFirebase("appLock", enabled)
+                            }
+                        )
+
                         Text("SUPPORT & INFORMATION", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Support_info()
+                        Support_info(
+                            onHelpCenterClick = onNavigateToHelpCenter,
+                            onContactSupportClick = onNavigateToContactSupport,
+                            onAboutClick = onNavigateToAbout
+                        )
+
                         verified_users()
+
+                        // Voice Protection Toggle
+
                         Button(
-                            onClick = onLogout,  // Calls the logout function
+                            onClick = onLogout,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 24.dp, vertical = 16.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFD32F2F),  // Red color
+                                containerColor = Color(0xFFD32F2F),
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(12.dp)
@@ -305,9 +315,6 @@ fun ProfileScreen(
                     }
                 }
             }
-
-            // LOGOUT BUTTON
-
         }
 
         SnackbarHost(
@@ -381,7 +388,6 @@ fun EditEmailDialog(
     )
 }
 
-// Enhanced Phone Dialog with Country Picker
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EnhancedPhoneDialog(
@@ -409,7 +415,6 @@ fun EnhancedPhoneDialog(
         },
         text = {
             Column {
-                // Country Picker
                 Text("Select Country:", color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -451,12 +456,10 @@ fun EnhancedPhoneDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Phone Number Input
                 Text("Phone Number:", color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Country Code Display
                     Surface(
                         color = Color(0xFF6200EE).copy(alpha = 0.1f),
                         shape = RoundedCornerShape(8.dp),
@@ -478,13 +481,10 @@ fun EnhancedPhoneDialog(
                         }
                     }
 
-                    // Phone Number Input
                     OutlinedTextField(
                         value = formatPhoneInput(phoneNumber),
                         onValueChange = { newValue ->
-                            // Remove all non-digits
                             val digitsOnly = newValue.filter { it.isDigit() }
-                            // Limit to reasonable length
                             phoneNumber = digitsOnly.take(15)
                             errorMessage = null
                         },
@@ -505,7 +505,6 @@ fun EnhancedPhoneDialog(
                     )
                 }
 
-                // Phone Number Format Example
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Example: ${selectedCountry.dialCode} 1712 345678",
@@ -524,7 +523,6 @@ fun EnhancedPhoneDialog(
                 onClick = {
                     val fullPhoneNumber = "${selectedCountry.dialCode}${phoneNumber}"
 
-                    // Basic validation
                     when {
                         phoneNumber.isEmpty() -> {
                             errorMessage = "Please enter a phone number"
@@ -539,7 +537,6 @@ fun EnhancedPhoneDialog(
                             errorMessage = "Phone number should contain only digits"
                         }
                         else -> {
-                            // Valid phone number
                             isLoading = true
                             onSave(fullPhoneNumber)
                         }
@@ -564,7 +561,7 @@ fun EnhancedPhoneDialog(
         }
     )
 }
-// Helper function to format phone number as user types
+
 private fun formatPhoneInput(phone: String): String {
     val digits = phone.filter { it.isDigit() }
     return when {
@@ -573,7 +570,7 @@ private fun formatPhoneInput(phone: String): String {
         else -> "${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7).take(4)}"
     }
 }
-// Enhanced Address Dialog with Multiple Fields
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EnhancedAddressDialog(
@@ -581,7 +578,6 @@ fun EnhancedAddressDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    // Parse current address into components
     val addressParts = parseAddress(currentAddress)
 
     var houseNumber by remember { mutableStateOf(addressParts.houseNumber) }
@@ -601,11 +597,9 @@ fun EnhancedAddressDialog(
         },
         text = {
             Column {
-                // Address Form
                 Text("Enter your address details:", color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Row 1: House Number & Street
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -631,7 +625,6 @@ fun EnhancedAddressDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Row 2: City & State
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -657,7 +650,6 @@ fun EnhancedAddressDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Row 3: Zip Code & Country
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -683,7 +675,6 @@ fun EnhancedAddressDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Additional Info
                 OutlinedTextField(
                     value = additionalInfo,
                     onValueChange = { additionalInfo = it },
@@ -694,7 +685,6 @@ fun EnhancedAddressDialog(
                     placeholder = { Text("Landmark, floor, etc.") }
                 )
 
-                // Address Preview
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     color = Color(0xFFF5F5F5),
@@ -768,7 +758,6 @@ fun personal_info(
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
             .background(Color.White)
     ) {
-        // Email Row
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
@@ -796,7 +785,6 @@ fun personal_info(
 
         Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
 
-        // Phone Row
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
@@ -824,7 +812,6 @@ fun personal_info(
 
         Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
 
-        // Address Row
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
@@ -926,11 +913,12 @@ fun profile_settings(userName: String = "User") {
     }
 }
 
-// In ProfileScreen function
-//safety_settings(onContactsClick = onNavigateToContacts) // <--- Pass the function here
 @Composable
-//fun safety_settings(onContactsClick = onNavigateToContacts){
-fun safety_settings() {
+fun safety_settings(
+    onSOSClick: () -> Unit,
+    onContactsClick: () -> Unit,
+    onNotificationsClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
@@ -939,7 +927,10 @@ fun safety_settings() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onSOSClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Warning,
@@ -961,7 +952,10 @@ fun safety_settings() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onContactsClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Person,
@@ -983,7 +977,10 @@ fun safety_settings() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onNotificationsClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
@@ -1005,7 +1002,12 @@ fun safety_settings() {
 }
 
 @Composable
-fun privacy_security() {
+fun privacy_security(
+    onPrivacyClick: () -> Unit,
+    onDataStorageClick: () -> Unit,
+    isAppLockEnabled: Boolean,
+    onAppLockToggle: (Boolean) -> Unit
+) {
     Column(
         modifier = Modifier
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
@@ -1014,7 +1016,10 @@ fun privacy_security() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onPrivacyClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Lock,
@@ -1036,7 +1041,10 @@ fun privacy_security() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onDataStorageClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Check,
@@ -1071,8 +1079,8 @@ fun privacy_security() {
                 Text(text = "Require PIN or biometric", color = Color.Gray, fontSize = 14.sp)
             }
             Switch(
-                checked = true,
-                onCheckedChange = {},
+                checked = isAppLockEnabled,
+                onCheckedChange = onAppLockToggle,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = Color(0xFF4CAF50),
@@ -1085,7 +1093,11 @@ fun privacy_security() {
 }
 
 @Composable
-fun Support_info() {
+fun Support_info(
+    onHelpCenterClick: () -> Unit,
+    onContactSupportClick: () -> Unit,
+    onAboutClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
@@ -1094,7 +1106,10 @@ fun Support_info() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onHelpCenterClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Info,
@@ -1116,7 +1131,10 @@ fun Support_info() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onContactSupportClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.MailOutline,
@@ -1138,7 +1156,10 @@ fun Support_info() {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier
+                .padding(10.dp)
+                .fillMaxWidth()
+                .clickable { onAboutClick() }
         ) {
             Icon(
                 imageVector = Icons.Default.Favorite,
@@ -1205,7 +1226,6 @@ fun verified_users() {
 private fun extractPhoneNumber(fullPhone: String): String {
     if (fullPhone.isEmpty()) return ""
 
-    // Remove country code if present
     for (country in countries) {
         if (fullPhone.startsWith(country.dialCode)) {
             return fullPhone.substring(country.dialCode.length).trim()
@@ -1218,7 +1238,6 @@ private fun extractPhoneNumber(fullPhone: String): String {
 private fun formatPhoneForDisplay(phone: String): String {
     if (phone.isEmpty()) return ""
 
-    // Try to format the phone number
     for (country in countries) {
         if (phone.startsWith(country.dialCode)) {
             val number = phone.substring(country.dialCode.length)
@@ -1245,7 +1264,7 @@ private fun getCountryCodeFromLocale(): String {
         "GB" -> "GB"
         "BD" -> "BD"
         "IN" -> "IN"
-        else -> "BD" // Default to Bangladesh
+        else -> "BD"
     }
 }
 
@@ -1265,7 +1284,6 @@ private fun parseAddress(address: String): AddressParts {
         return AddressParts("", "", "", "", "", "Bangladesh", "")
     }
 
-    // Simple parsing - you can enhance this based on your needs
     val parts = address.split(",").map { it.trim() }
 
     return when (parts.size) {
