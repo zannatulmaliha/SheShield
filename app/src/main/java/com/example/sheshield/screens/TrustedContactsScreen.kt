@@ -1,4 +1,3 @@
-
 package com.example.sheshield.screens
 
 import android.util.Log
@@ -16,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.sheshield.viewmodel.ContactsViewModel
 import com.example.sheshield.models.countries
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.CircleShape
 // Add these imports at the top of your file
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -40,7 +42,18 @@ import kotlinx.coroutines.launch
 
 import android.Manifest
 
-// Define the color locally
+// Dark theme colors matching HomeScreen
+private val BackgroundDark = Color(0xFF1A1A2E)
+private val SurfaceCard = Color(0xFF25254A)
+private val PrimaryPurple = Color(0xFF8B7FFF)
+private val SecondaryPurple = Color(0xFF6B5FEE)
+private val AccentEmerald = Color(0xFF34D399)
+private val AccentAmber = Color(0xFFFBBF24)
+private val DangerRose = Color(0xFFFB7185)
+private val TextPrimary = Color(0xFFE8E8F0)
+private val TextSecondary = Color(0xFFB4B4C8)
+
+// Keep original purple for compatibility
 val Purple600 = Color(0xFF6200EE)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,20 +72,64 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
     var newContactName by remember { mutableStateOf("") }
 
     Scaffold(
+        containerColor = BackgroundDark,
         topBar = {
-            TopAppBar(
-                title = { Text("Trusted Contacts") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Purple600,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            Surface(
+                color = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+                        ambientColor = PrimaryPurple.copy(alpha = 0.5f),
+                        spotColor = PrimaryPurple.copy(alpha = 0.5f)
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF4C3F8F),
+                                    Color(0xFF3A2F6F)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    PrimaryPurple.copy(alpha = 0.6f),
+                                    PrimaryPurple.copy(alpha = 0.2f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+                        )
+                ) {
+                    Column {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    "Trusted Contacts",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                titleContentColor = Color.White,
+                                navigationIconContentColor = Color.White
+                            ),
+                            navigationIcon = {
+                                IconButton(onClick = onBack) {
+                                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                                }
+                            }
+                        )
                     }
                 }
-            )
+            }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -80,32 +137,69 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Color(0xFFF9FAFB))
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                BackgroundDark,
+                                Color(0xFF16213E),
+                                BackgroundDark
+                            )
+                        )
+                    )
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header Info
                 item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = Purple600,
-                                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                            )
-                            .padding(24.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = PrimaryPurple.copy(alpha = 0.15f)
+                        ),
+                        elevation = CardDefaults.cardElevation(4.dp)
                     ) {
-                        Text(
-                            text = "Trusted Contacts",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "${contacts.size} contact${if (contacts.size != 1) "s" else ""} • They'll receive your SOS alerts",
-                            fontSize = 14.sp,
-                            color = Color(0xFFD8B4FE)
-                        )
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                PrimaryPurple.copy(alpha = 0.3f),
+                                                Color.Transparent
+                                            )
+                                        ),
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Group,
+                                    contentDescription = null,
+                                    tint = PrimaryPurple,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "${contacts.size} Trusted Contact${if (contacts.size != 1) "s" else ""}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "They'll receive your SOS alerts",
+                                    fontSize = 14.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -115,25 +209,30 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
                         icon = Icons.Default.Phone,
                         title = "How it works",
                         description = "When you activate SOS, these contacts will instantly receive your location, emergency details, and live tracking updates.",
-                        backgroundColor = Color(0xFFEFF6FF),
-                        borderColor = Color(0xFFBFDBFE)
+                        backgroundColor = PrimaryPurple.copy(alpha = 0.15f),
+                        borderColor = PrimaryPurple.copy(alpha = 0.3f)
                     )
                 }
 
                 // Add Contact Button
                 item {
-                    FilledTonalButton(
+                    Button(
                         onClick = { showAddForm = !showAddForm },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Purple600,
-                            contentColor = Color.White
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryPurple
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 4.dp,
+                            pressedElevation = 8.dp
                         )
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Add")
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add Trusted Contact")
+                        Text("Add Trusted Contact", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -160,18 +259,32 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
                 // After the AddContactForm item
                 if (errorMessage != null) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .background(Color.Red.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                                .padding(12.dp)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = DangerRose
+                            ),
+                            elevation = CardDefaults.cardElevation(6.dp)
                         ) {
-                            Text(
-                                text = errorMessage ?: "",
-                                color = Color.Red,
-                                fontSize = 14.sp
-                            )
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = errorMessage ?: "",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -192,7 +305,7 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
                             text = "Become a Verified Helper",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1F2937)
+                            color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         VerifiedHelperCard()
@@ -205,141 +318,15 @@ fun TrustedContactsScreen(onBack: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
+                        .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Purple600)
+                    CircularProgressIndicator(color = PrimaryPurple, strokeWidth = 3.dp)
                 }
             }
         }
     }
 }
-
-//@Composable
-//fun ContactCard(
-//    contact: com.example.sheshield.models.Contact,
-//    onDelete: () -> Unit,
-//    onSendTest: () -> Unit,
-//    onCall: () -> Unit
-//) {
-//    val context = LocalContext.current
-//    Card(
-//        modifier = Modifier.fillMaxWidth(),
-//        shape = RoundedCornerShape(16.dp),
-//        colors = CardDefaults.cardColors(containerColor = Color.White),
-//        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-//    ) {
-//        Column(modifier = Modifier.padding(16.dp)) {
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//                horizontalArrangement = Arrangement.SpaceBetween,
-//                verticalAlignment = Alignment.Top
-//            ) {
-//                Column(modifier = Modifier.weight(1f)) {
-//                    Row(verticalAlignment = Alignment.CenterVertically) {
-//                        Text(
-//                            text = contact.name,
-//                            fontSize = 16.sp,
-//                            fontWeight = FontWeight.SemiBold,
-//                            color = Color(0xFF1F2937)
-//                        )
-//                    }
-//                }
-//                //delete b
-//                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-//                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444))
-//                }
-//            }
-//
-//            Spacer(modifier = Modifier.height(12.dp))
-//            ContactInfoRow(icon = Icons.Default.Phone, text = contact.phone)
-//        }
-//        // CALL BUTTON at Bottom Right
-//
-//        IconButton(
-//            onClick = {
-//                // SIMPLE: Just make the call
-//                val intent = Intent(Intent.ACTION_CALL).apply {
-//                    data = Uri.parse("tel:${contact.phone}")
-//                }
-//                context.startActivity(intent)
-//            },
-////            onClick = onCall,
-//            modifier = Modifier
-//
-////                .fillMaxWidth()  // Take full width
-//                .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)  // Keep your padding
-//                .size(48.dp),
-//            colors = IconButtonDefaults.iconButtonColors(
-//                containerColor = Color(0xFFDC2626).copy(alpha = 0.9f),
-//                contentColor = Color.White
-//            )
-//        ) {
-//            Icon(Icons.Default.Call, contentDescription = "Emergency Call", modifier = Modifier.size(24.dp))
-//        }
-//    }
-//}
-
-//@Composable
-//fun ContactCard(
-//    contact: com.example.sheshield.models.Contact,
-//    onDelete: () -> Unit,
-//    onSendTest: () -> Unit
-//) {
-//    val context = LocalContext.current
-//
-//    Card(
-//        modifier = Modifier.fillMaxWidth(),
-//        shape = RoundedCornerShape(16.dp),
-//        colors = CardDefaults.cardColors(containerColor = Color.White),
-//        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-//    ) {
-//        Column(modifier = Modifier.padding(16.dp)) {
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//                horizontalArrangement = Arrangement.SpaceBetween,
-//                verticalAlignment = Alignment.Top
-//            ) {
-//                Column(modifier = Modifier.weight(1f)) {
-//                    Row(verticalAlignment = Alignment.CenterVertically) {
-//                        Text(
-//                            text = contact.name,
-//                            fontSize = 16.sp,
-//                            fontWeight = FontWeight.SemiBold,
-//                            color = Color(0xFF1F2937)
-//                        )
-//                    }
-//                }
-//                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-//                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444))
-//                }
-//            }
-//
-//            Spacer(modifier = Modifier.height(12.dp))
-//            ContactInfoRow(icon = Icons.Default.Phone, text = contact.phone)
-//
-//            Spacer(modifier = Modifier.height(12.dp))
-//
-//            // Emergency Call Button - FIXED VERSION
-//            Button(
-//                onClick = {
-//                    // Use the helper
-//                    CallPermissionHelper.makeCall(context, contact.phone)
-//                },
-//                modifier = Modifier.fillMaxWidth(),
-//                colors = ButtonDefaults.buttonColors(
-//                    containerColor = Color(0xFFDC2626),
-//                    contentColor = Color.White
-//                ),
-//                shape = RoundedCornerShape(12.dp)
-//            ) {
-//                Icon(Icons.Default.Call, contentDescription = "Emergency Call", modifier = Modifier.size(20.dp))
-//                Spacer(modifier = Modifier.width(8.dp))
-//                Text("Emergency Call")
-//            }
-//        }
-//    }
-//}
 
 @Composable
 fun ContactCard(
@@ -368,9 +355,9 @@ fun ContactCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -380,16 +367,38 @@ fun ContactCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            AccentEmerald.copy(alpha = 0.3f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = AccentEmerald,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = contact.name,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1F2937)
+                            color = TextPrimary
                         )
                     }
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444))
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DangerRose)
                 }
             }
 
@@ -414,14 +423,14 @@ fun ContactCard(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFDC2626),
+                    containerColor = DangerRose,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Call, contentDescription = "Emergency Call", modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Emergency Call")
+                Text("Emergency Call", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -431,9 +440,24 @@ fun ContactCard(
 
 @Composable
 fun ContactInfoRow(icon: ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
-        Text(text = text, fontSize = 14.sp, color = Color(0xFF4B5563))
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Color.White.copy(alpha = 0.05f),
+                RoundedCornerShape(10.dp)
+            )
+            .padding(12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AccentEmerald,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(text = text, fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -449,38 +473,56 @@ fun AddContactForm(
     var phoneNumber by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     val fullPhoneNumber = "${selectedCountry.dialCode}$phoneNumber"
-//    val isFormValid = name.isNotEmpty() && phoneNumber.isNotEmpty()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Add Trusted Contact", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 16.dp))
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Add Trusted Contact",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = TextPrimary,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
             // Name Field
             OutlinedTextField(
                 value = name,
                 onValueChange = onNameChange,
-                label = { Text("Full Name") },
+                label = { Text("Full Name", color = TextSecondary) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Name") }
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Name", tint = PrimaryPurple) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryPurple,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    cursorColor = PrimaryPurple
+                ),
+                shape = RoundedCornerShape(12.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Phone Number", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
+            Text(
+                "Phone Number",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextSecondary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-
-// Container with border
+            // Container with border
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(Color.White, RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFD1D5DB), RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -502,10 +544,10 @@ fun AddContactForm(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(
-                                        color = Color(0xFFF3F4F6),
+                                        color = PrimaryPurple.copy(alpha = 0.15f),
                                         shape = RoundedCornerShape(
-                                            topStart = 8.dp,
-                                            bottomStart = 8.dp,
+                                            topStart = 12.dp,
+                                            bottomStart = 12.dp,
                                             topEnd = 0.dp,
                                             bottomEnd = 0.dp
                                         )
@@ -521,7 +563,7 @@ fun AddContactForm(
                                     Icon(
                                         Icons.Default.ArrowDropDown,
                                         contentDescription = "Select country",
-                                        tint = Color.Gray,
+                                        tint = TextSecondary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -532,8 +574,9 @@ fun AddContactForm(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false },
                                 modifier = Modifier
-                                    .width(250.dp) // Fixed width for dropdown
+                                    .width(250.dp)
                                     .height(300.dp)
+                                    .background(SurfaceCard)
                             ) {
                                 countries.forEach { country ->
                                     DropdownMenuItem(
@@ -541,15 +584,18 @@ fun AddContactForm(
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(country.flag, fontSize = 18.sp)
                                                 Spacer(modifier = Modifier.width(12.dp))
-                                                Text(country.dialCode, fontWeight = FontWeight.Medium)
+                                                Text(country.dialCode, fontWeight = FontWeight.Medium, color = TextPrimary)
                                                 Spacer(modifier = Modifier.width(12.dp))
-                                                Text(country.name, color = Color.Gray, fontSize = 14.sp)
+                                                Text(country.name, color = TextSecondary, fontSize = 14.sp)
                                             }
                                         },
                                         onClick = {
                                             selectedCountry = country
                                             expanded = false
-                                        }
+                                        },
+                                        colors = MenuDefaults.itemColors(
+                                            textColor = TextPrimary
+                                        )
                                     )
                                 }
                             }
@@ -572,7 +618,7 @@ fun AddContactForm(
                             // Country code
                             Text(
                                 selectedCountry.dialCode,
-                                color = Color(0xFF374151),
+                                color = TextPrimary,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 16.sp
                             )
@@ -586,14 +632,14 @@ fun AddContactForm(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 textStyle = LocalTextStyle.current.copy(
                                     fontSize = 16.sp,
-                                    color = Color.Black
+                                    color = TextPrimary
                                 ),
                                 decorationBox = { innerTextField ->
                                     Box {
                                         if (phoneNumber.isEmpty()) {
                                             Text(
                                                 "Enter phone number",
-                                                color = Color(0xFF9CA3AF),
+                                                color = TextSecondary,
                                                 fontSize = 16.sp
                                             )
                                         }
@@ -607,28 +653,38 @@ fun AddContactForm(
             }
             // Preview
             if (phoneNumber.isNotEmpty()) {
-                Text("Full number: $fullPhoneNumber", fontSize = 12.sp, color = Purple600, modifier = Modifier.padding(top = 8.dp))
+                Text(
+                    "Full number: $fullPhoneNumber",
+                    fontSize = 12.sp,
+                    color = AccentEmerald,
+                    modifier = Modifier.padding(top = 8.dp),
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
             val isFormValid = name.trim().isNotEmpty() && phoneNumber.trim().isNotEmpty()
             // Action Buttons
-            // Action Buttons - Minimal version
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onCancel) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextSecondary)
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Button(
                     onClick = { onAdd(name, fullPhoneNumber) },
-                    enabled = isFormValid
+                    enabled = isFormValid,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentEmerald,
+                        disabledContainerColor = AccentEmerald.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Add Contact")
+                    Text("Add Contact", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -644,20 +700,55 @@ fun InfoCard(
     backgroundColor: Color,
     borderColor: Color
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(color = backgroundColor, shape = RoundedCornerShape(12.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
-            .padding(16.dp),
-        verticalAlignment = Alignment.Top
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
+        ),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1E40AF))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = description, fontSize = 14.sp, color = Color(0xFF1E3A8A), lineHeight = 20.sp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                PrimaryPurple.copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = PrimaryPurple,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    fontSize = 14.sp,
+                    color = TextSecondary,
+                    lineHeight = 20.sp
+                )
+            }
         }
     }
 }
@@ -666,20 +757,51 @@ fun InfoCard(
 fun VerifiedHelperCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = AccentEmerald.copy(alpha = 0.15f)),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Default.ThumbUp, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.width(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                AccentEmerald.copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.ThumbUp,
+                    contentDescription = null,
+                    tint = AccentEmerald,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Column {
-                Text(text = "Trusted Helper Badge", fontWeight = FontWeight.Bold, color = Color(0xFF065F46))
-                Text(text = "Verify your ID to become a helper for others in your community.", fontSize = 13.sp, color = Color(0xFF064E3B))
+                Text(
+                    text = "Trusted Helper Badge",
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Verify your ID to become a helper for others in your community.",
+                    fontSize = 13.sp,
+                    color = TextSecondary,
+                    lineHeight = 18.sp
+                )
             }
         }
     }

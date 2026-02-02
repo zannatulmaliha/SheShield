@@ -1,4 +1,4 @@
-package com.example.sheshield
+package com.example.sheshield.screens
 
 import android.Manifest
 import android.content.Context
@@ -17,11 +17,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +40,14 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
+
+// Consistent SheShield Dark Theme Palette
+private val BackgroundDark = Color(0xFF1A1A2E)
+private val SurfaceCard = Color(0xFF25254A)
+private val PrimaryPurple = Color(0xFF8B7FFF)
+private val AccentEmerald = Color(0xFF34D399)
+private val TextPrimary = Color(0xFFE8E8F0)
+private val TextSecondary = Color(0xFFB4B4C8)
 
 @Composable
 fun RespondersNearMeScreen(onBackClick: () -> Unit = {}) {
@@ -233,47 +245,145 @@ fun RespondersNearMeScreen(onBackClick: () -> Unit = {}) {
     }
 }
 
-// ---------------- HEADER ----------------
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBarResponders(onBackClick: () -> Unit) {
     Surface(
-        color = Color(0xFF6000E9),
-        shape = RoundedCornerShape(bottomStart = 15.dp, bottomEnd = 15.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(16.dp, RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)),
+        color = Color.Transparent
     ) {
-        Row(
-            modifier = Modifier
-                .padding(top = 40.dp, bottom = 15.dp, start = 10.dp, end = 10.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF4C3F8F), Color(0xFF3A2F6F))
+                )
+            )
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
+            TopAppBar(
+                title = {
+                    Text(
+                        "Responders Near Me",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun MapSection() {
+    val centerLocation = LatLng(23.8103, 90.4125)
+    val responderLocations = listOf(
+        LatLng(23.8123, 90.4145),
+        LatLng(23.8083, 90.4105),
+        LatLng(23.8143, 90.4100),
+        LatLng(23.8090, 90.4160)
+    )
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(centerLocation, 14.5f)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .shadow(12.dp, RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(24.dp))
+            .border(1.dp, PrimaryPurple.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+    ) {
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                mapToolbarEnabled = false,
+                myLocationButtonEnabled = false
+            )
+        ) {
+            Marker(
+                state = MarkerState(position = centerLocation),
+                title = "You",
+                snippet = "Current Location"
+            )
+            responderLocations.forEachIndexed { index, latLng ->
+                MarkerComposable(
+                    state = MarkerState(position = latLng),
+                    title = "Responder ${index + 1}"
+                ) {
+                    ResponderMapMarker(index)
+                }
             }
             Text("Responders Near Me", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
-// ---------------- RADIUS SLIDER ----------------
+@Composable
+fun ResponderMapMarker(index: Int) {
+    val colors = listOf(AccentEmerald, Color(0xFF6B5FEE), Color(0xFFFBBF24), Color(0xFFFB7185))
+    val color = colors[index % colors.size]
+
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .background(Color.White, CircleShape)
+            .padding(2.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "R${index + 1}",
+            color = Color.White,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.sp
+        )
+    }
+}
 
 @Composable
-fun RadiusSelector(currentRadius: Float, onRadiusChange: (Float) -> Unit) {
-    Column {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Search Radius", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("${currentRadius.toInt()} km", fontSize = 14.sp, color = Color(0xFF6000E9), fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(6.dp))
+fun RadiusSelector() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Search Radius", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.weight(1f))
+                var radius by remember { mutableFloatStateOf(2f) }
+                Text("${radius.toInt()} km", color = PrimaryPurple, fontWeight = FontWeight.Bold)
+            }
 
-        Slider(
-            value = currentRadius,
-            onValueChange = onRadiusChange,
-            valueRange = 1f..50f,
-            colors = SliderDefaults.colors(thumbColor = Color(0xFF6000E9), activeTrackColor = Color(0xFF6000E9)),
-            modifier = Modifier.fillMaxWidth()
-        )
+            var radius by remember { mutableFloatStateOf(2f) }
+            Slider(
+                value = radius,
+                onValueChange = { radius = it },
+                valueRange = 1f..5f,
+                colors = SliderDefaults.colors(
+                    thumbColor = PrimaryPurple,
+                    activeTrackColor = PrimaryPurple,
+                    inactiveTrackColor = PrimaryPurple.copy(alpha = 0.2f)
+                )
+            )
+        }
     }
 }
 
@@ -283,122 +393,144 @@ fun RadiusSelector(currentRadius: Float, onRadiusChange: (Float) -> Unit) {
 fun StatsRow(available: String, total: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(15.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        StatBox(available, "Nearby", Color(0xFFD9FBE5))
-        StatBox(total, "Total Active", Color(0xFFEAF0FF))
-        StatBox("5 min", "Avg Time", Color(0xFFFFE3F3))
+        StatBox("4", "Available", AccentEmerald)
+        StatBox("5", "Total Nearby", PrimaryPurple)
+        StatBox("< 5m", "Response", Color(0xFFFB7185))
     }
 }
 
 @Composable
-fun RowScope.StatBox(value: String, label: String, bg: Color) {
-    Column(
-        modifier = Modifier
-            .weight(1f)
-            .background(bg, RoundedCornerShape(16.dp))
-            .border(1.dp, Color.Transparent, RoundedCornerShape(16.dp))
-            .padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+fun RowScope.StatBox(value: String, label: String, accentColor: Color) {
+    Card(
+        modifier = Modifier.weight(1f),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.2f))
     ) {
-        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 12.sp, color = Color.Gray)
+        Column(
+            modifier = Modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = accentColor)
+            Text(label, fontSize = 11.sp, color = TextSecondary, textAlign = TextAlign.Center)
+        }
     }
 }
-
-// ---------------- HOW IT WORKS ----------------
 
 @Composable
 fun HowItWorksCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(15.dp))
-            .border(1.dp, Color(0xFFE3E3E3), RoundedCornerShape(15.dp))
-            .padding(12.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = PrimaryPurple.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.3f))
     ) {
-        Text("How It Works", fontSize = 16.sp, color = Color(0xFF6000E9), fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text(
-            "When you activate SOS, verified helpers nearby will be notified. Icons on the map update in real-time.",
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = PrimaryPurple, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("How It Works", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "When SOS is triggered, verified helpers nearby are notified to assist. All responders are background-checked.",
+                    fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
+                )
+            }
+        }
     }
 }
 
-// ---------------- RESPONDER CARD ----------------
+@Composable
+fun ResponderList() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Nearby Responders", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        ResponderCard("MD Shirajul Islam", "0.5 km", "3–5 min", "Available")
+        ResponderCard("Nilufar Yasmin", "0.7 km", "4–6 min", "Available")
+        ResponderCard("AK Himel", "1.2 km", "5–8 min", "Busy")
+    }
+}
 
 @Composable
-fun ResponderCardReal(helper: UserData, distance: String, context: Context) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(14.dp))
-            .border(1.dp, Color.LightGray, RoundedCornerShape(14.dp))
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun ResponderCard(name: String, distance: String, time: String, status: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
     ) {
-        Box(
-            modifier = Modifier
-                .size(45.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFEEE6FF)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val initials = if (helper.name.isNotBlank()) helper.name.take(1) else "?"
-            Text(initials, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6000E9))
-        }
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryPurple.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                val initials = if (name.contains(" ")) "${name.first()}${name.split(" ").last().first()}" else name.take(2)
+                Text(initials, color = PrimaryPurple, fontWeight = FontWeight.Bold)
+            }
 
-        Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(helper.name, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("$distance away", fontSize = 13.sp, color = Color.Gray)
-        }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("$distance • $time", fontSize = 12.sp, color = TextSecondary)
+            }
 
-        IconButton(
-            onClick = {
-                if (helper.phone.isNotBlank()) {
-                    val intent = Intent(Intent.ACTION_DIAL).apply {
-                        data = Uri.parse("tel:${helper.phone}")
-                    }
-                    context.startActivity(intent)
-                } else {
-                    Toast.makeText(context, "No phone number", Toast.LENGTH_SHORT).show()
-                }
-            },
-            modifier = Modifier
-                .background(Color(0xFFE8F5E9), CircleShape)
-                .size(40.dp)
-        ) {
-            Icon(Icons.Default.Call, "Call", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+            StatusTag(status)
         }
+    }
+}
+
+@Composable
+fun StatusTag(status: String) {
+    val isAvailable = status == "Available"
+    Box(
+        modifier = Modifier
+            .background(
+                if (isAvailable) AccentEmerald.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.1f),
+                RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            status,
+            fontSize = 11.sp,
+            color = if (isAvailable) AccentEmerald else Color(0xFFFB7185),
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
 @Composable
 fun BecomeHelperCard() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFE9FFE7), RoundedCornerShape(15.dp))
-            .border(1.dp, Color(0xFFC8E6C9), RoundedCornerShape(15.dp))
-            .padding(12.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = AccentEmerald.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, AccentEmerald.copy(alpha = 0.3f))
     ) {
-        Text("Want to Help Others?", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text("Join our verified helper network.", fontSize = 14.sp, color = Color.Gray)
-        Spacer(Modifier.height(12.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF4CAF50), RoundedCornerShape(12.dp))
-                .clickable { }
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Apply to be a Helper", color = Color.White, fontWeight = FontWeight.Bold)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = AccentEmerald)
+                Spacer(Modifier.width(10.dp))
+                Text("Want to Help Others?", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Join our verified helper network and make a difference.", fontSize = 13.sp, color = TextSecondary)
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentEmerald),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Apply to be a Helper", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

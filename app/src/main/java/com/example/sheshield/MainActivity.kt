@@ -23,12 +23,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHost
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController as remNav
 import com.example.sheshield.models.UserData
+import com.example.sheshield.navigation.NavController
+import com.example.sheshield.navigation.rememberNavController
 import com.example.sheshield.screens.*
 import com.example.sheshield.navigation.HelperScreen
 import com.example.sheshield.screens.helper.HelperAlertsContent
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
+import com.example.sheshield.ui.screens.TimedCheckIn
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -74,6 +82,30 @@ enum class AppDestinations(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SheShieldApp() {
+    val navController = remNav();
+
+    NavHost(
+        navController = navController,
+        startDestination = "launcher",
+    ) {
+        composable("launcher") {
+            Launcher(
+                navController = navController
+            )
+        }
+        composable("timedcheckin") {
+            TimedCheckIn(
+                onNavigate = { _ -> {} },
+                onBack = {}
+            )
+        }
+    }
+}
+
+@Composable
+private fun Launcher(
+    navController: NavHostController
+) {
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
@@ -118,6 +150,7 @@ fun SheShieldApp() {
                                 // Start in user mode, can switch to helper
                                 appMode = AppMode.USER
                             }
+
                             else -> appMode = AppMode.USER
                         }
                     }
@@ -149,8 +182,7 @@ fun SheShieldApp() {
                 // Not needed here, handled by userType selection
             }
         )
-    }
-    else if (isLoggedIn == true) {
+    } else if (isLoggedIn == true) {
         // Determine what to show based on user type
         when (userData?.userType) {
             "helper" -> {
@@ -166,6 +198,7 @@ fun SheShieldApp() {
                     userData = userData
                 )
             }
+
             "user" -> {
                 // User only - check if showing movement screen or normal app
                 if (showMovementScreen) {
@@ -187,10 +220,12 @@ fun SheShieldApp() {
                         },
                         showSwitchToHelper = false,
                         movementViewModel = movementViewModel,
-                        onMovementScreenClick = { showMovementScreen = true }
+                        onMovementScreenClick = { showMovementScreen = true },
+                        navController=navController
                     )
                 }
             }
+
             "user_helper" -> {
                 // User+Helper - can switch between modes
                 if (appMode == AppMode.USER) {
@@ -214,7 +249,8 @@ fun SheShieldApp() {
                             showSwitchToHelper = true,
                             onSwitchToHelperMode = { appMode = AppMode.HELPER },
                             movementViewModel = movementViewModel,
-                            onMovementScreenClick = { showMovementScreen = true }
+                            onMovementScreenClick = { showMovementScreen = true },
+                            navController = navController
                         )
                     }
                 } else {
@@ -233,6 +269,7 @@ fun SheShieldApp() {
                     )
                 }
             }
+
             else -> {
                 // Default fallback
                 if (showMovementScreen) {
@@ -254,7 +291,8 @@ fun SheShieldApp() {
                         },
                         showSwitchToHelper = false,
                         movementViewModel = movementViewModel,
-                        onMovementScreenClick = { showMovementScreen = true }
+                        onMovementScreenClick = { showMovementScreen = true },
+                        navController = navController
                     )
                 }
             }
@@ -271,7 +309,8 @@ fun UserModeApp(
     showSwitchToHelper: Boolean,
     movementViewModel: MovementViewModel,
     onMovementScreenClick: () -> Unit,
-    onSwitchToHelperMode: (() -> Unit)? = null
+    onSwitchToHelperMode: (() -> Unit)? = null,
+    navController: NavHostController
 ) {
     // Collect movement state - kept for badge indicator in HomeScreen
     val movementState by movementViewModel.movementState.collectAsState()
@@ -316,20 +355,38 @@ fun UserModeApp(
             }
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        val context = LocalContext.current;
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (currentDestination) {
                 AppDestinations.HOME -> HomeScreen(
                     movementViewModel = movementViewModel,
-                    onCardOneClick = { onDestinationChange(AppDestinations.HOME) },
-                    onCardTwoClick = { onDestinationChange(AppDestinations.HOME) },
-                    onCardFiveClick = { onDestinationChange(AppDestinations.HOME) },
+                    onTrackRouteClick = {
+                        onDestinationChange(AppDestinations.MAP);
+                    },
+
+                    onTimedCheckInClick = {
+                        navController.navigate("timedcheckin")
+                    },
+
+                    onRespondersClick = {
+                        onDestinationChange(AppDestinations.AI)
+                    },
+
                     onMovementScreenClick = onMovementScreenClick
                 )
+
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
                     onBack = { onDestinationChange(AppDestinations.PROFILE) }
                 )
-                AppDestinations.MAP -> GeneralMapScreen()
-                AppDestinations.AI -> Text("AI Help Screen")
+
+                AppDestinations.MAP -> TrackRouteScreen(
+                    onBack = { onDestinationChange(AppDestinations.HOME) }
+                )
+
+                AppDestinations.AI -> RespondersNearMeScreen(
+                    onBackClick = { onDestinationChange(AppDestinations.HOME) }
+                )
+
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
                     onLogout = onLogout,
@@ -365,6 +422,7 @@ fun UserModeApp(
                     onBack = { onDestinationChange(AppDestinations.PROFILE) }
                 )
             }
+
         }
     }
 }
