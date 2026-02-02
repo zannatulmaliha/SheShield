@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- EXISTING PERMISSIONS -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
@@ -85,6 +89,13 @@
             android:foregroundServiceType="microphone"
             android:stopWithTask="false">
         </service>
+
+        <service
+            android:name=".services.AudioRecorderService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
 
         <!-- NEW: BOOT RECEIVER (Auto-start voice service on boot) -->
         <receiver

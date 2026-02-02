@@ -1,17 +1,14 @@
 package com.example.sheshield
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,9 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.models.UserData
 import com.example.sheshield.screens.*
+import com.example.sheshield.navigation.HelperScreen
 import com.example.sheshield.screens.helper.HelperAlertsContent
-import com.example.sheshield.screens.helper.HelperScreen
-import com.example.sheshield.screens.helper.HelperAlertsScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
 import com.example.sheshield.ui.theme.SheShieldTheme
@@ -56,6 +52,7 @@ enum class AppMode {
     USER, HELPER
 }
 
+// Update AppDestinations enum to include all new screens
 enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
@@ -65,6 +62,13 @@ enum class AppDestinations(
     MAP("Map", Icons.Default.LocationOn),
     AI("AI Help", Icons.Default.Face),
     PROFILE("Profile", Icons.Default.AccountBox),
+    SOS_SETTINGS("SOS", Icons.Default.Warning),
+    NOTIFICATIONS("Notifications", Icons.Default.Notifications),
+    PRIVACY("Privacy", Icons.Default.Lock),
+    DATA_STORAGE("Data", Icons.Default.Storage),
+    HELP_CENTER("Help", Icons.Default.Help),
+    CONTACT_SUPPORT("Support", Icons.Default.Mail),
+    ABOUT("About", Icons.Default.Info),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -143,7 +147,6 @@ fun SheShieldApp() {
             },
             onSwitchToHelperMode = {
                 // Not needed here, handled by userType selection
-
             }
         )
     }
@@ -276,7 +279,14 @@ fun UserModeApp(
     Scaffold(
         bottomBar = {
             NavigationBar {
-                AppDestinations.entries.forEach { destination ->
+                // Show only main tabs in bottom navigation (first 5)
+                listOf(
+                    AppDestinations.HOME,
+                    AppDestinations.CONTACTS,
+                    AppDestinations.MAP,
+                    AppDestinations.AI,
+                    AppDestinations.PROFILE
+                ).forEach { destination ->
                     NavigationBarItem(
                         selected = currentDestination == destination,
                         onClick = { onDestinationChange(destination) },
@@ -289,12 +299,12 @@ fun UserModeApp(
             }
         },
         floatingActionButton = {
-            //if (showSwitchToHelper && onSwitchToHelperMode != null) {
+            if (showSwitchToHelper && onSwitchToHelperMode != null) {
                 FloatingActionButton(
                     onClick = {
-                        onSwitchToHelperMode?.invoke();
-                        //appMode = AppMode.HELPER; // wny error here? unresolved reference appMode
-                    }, //onSwitchToHelperMode,
+                        // FIX 2: Just call the function. Don't try to set appMode here.
+                        onSwitchToHelperMode()
+                    },
                     containerColor = Color(0xFF6200EE)
                 ) {
                     Icon(
@@ -303,7 +313,7 @@ fun UserModeApp(
                         tint = Color.White
                     )
                 }
-            //}
+            }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -316,13 +326,43 @@ fun UserModeApp(
                     onMovementScreenClick = onMovementScreenClick
                 )
                 AppDestinations.CONTACTS -> TrustedContactsScreen(
-                    onBack = { onDestinationChange(AppDestinations.HOME) }
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
                 )
                 AppDestinations.MAP -> GeneralMapScreen()
                 AppDestinations.AI -> Text("AI Help Screen")
                 AppDestinations.PROFILE -> ProfileScreen(
                     onBack = { onDestinationChange(AppDestinations.HOME) },
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onNavigateToContacts = { onDestinationChange(AppDestinations.CONTACTS) },
+                    onNavigateToSOS = { onDestinationChange(AppDestinations.SOS_SETTINGS) },
+                    onNavigateToNotifications = { onDestinationChange(AppDestinations.NOTIFICATIONS) },
+                    onNavigateToPrivacy = { onDestinationChange(AppDestinations.PRIVACY) },
+                    onNavigateToDataStorage = { onDestinationChange(AppDestinations.DATA_STORAGE) },
+                    onNavigateToHelpCenter = { onDestinationChange(AppDestinations.HELP_CENTER) },
+                    onNavigateToContactSupport = { onDestinationChange(AppDestinations.CONTACT_SUPPORT) },
+                    onNavigateToAbout = { onDestinationChange(AppDestinations.ABOUT) }
+                )
+                // Add new destination screens
+                AppDestinations.SOS_SETTINGS -> SosSettingsScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.NOTIFICATIONS -> NotificationsSettingsScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.PRIVACY -> PrivacySettingsScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.DATA_STORAGE -> DataStorageScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.HELP_CENTER -> HelpCenterScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.CONTACT_SUPPORT -> ContactSupportScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
+                )
+                AppDestinations.ABOUT -> AboutScreen(
+                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
                 )
             }
         }
