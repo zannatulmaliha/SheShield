@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,33 +27,20 @@ import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.models.UserData
 import com.example.sheshield.screens.*
 import com.example.sheshield.navigation.HelperScreen
-import com.example.sheshield.screens.helper.HelperAlertsContent
 import com.example.sheshield.screens.helper.HelperAlertsScreen
-import com.example.sheshield.screens.helper.HelperScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
-import com.example.sheshield.screens.helper.HelperSupportScreen // ADDED: Import for Support Screen
+import com.example.sheshield.screens.helper.HelperSupportScreen
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
-import com.example.sheshield.screens.AiHelpScreen
-
-import com.example.sheshield.screens.VerificationScreen
-import com.google.firebase.Firebase
-import com.google.firebase.firestore.firestore
-
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.auth.User
-import kotlinx.coroutines.tasks.await
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
             SheShieldTheme {
                 SheShieldApp()
@@ -66,7 +53,6 @@ enum class AppMode {
     USER, HELPER
 }
 
-// Update AppDestinations enum to include all new screens
 enum class AppDestinations(
     val label: String,
     val icon: ImageVector,
@@ -92,11 +78,9 @@ fun SheShieldApp() {
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
 
-    // ViewModels
     val movementViewModel: MovementViewModel = viewModel()
-    val sosViewModel: SosViewModel = viewModel() // Initialize SOS ViewModel here
+    val sosViewModel: SosViewModel = viewModel()
 
-    // State variables
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var isLoggedIn by remember { mutableStateOf<Boolean?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -104,474 +88,85 @@ fun SheShieldApp() {
     var userData by remember { mutableStateOf<UserData?>(null) }
     var showMovementScreen by rememberSaveable { mutableStateOf(false) }
 
-    var needsVerification by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { movementViewModel.initialize(context) }
+    LaunchedEffect(Unit) { sosViewModel.initLocationClient(context) }
 
-    val currentUser = Firebase.auth.currentUser
-
-//    LaunchedEffect(currentUser?.uid) {
-//        currentUser?.uid?.let { uid ->
-//            val docRef = Firebase.firestore.collection("users").document(uid)
-//            docRef.get()
-//                .addOnSuccessListener { doc ->
-//                    val fetchedUser = doc.toObject(UserData::class.java)
-//                    // Force copy UID
-//                    val isVerifiedFromFirestore = doc.getBoolean("isHelperVerified") ?: false
-//
-//                    userData = fetchedUser?.copy(
-//                        userId = uid,
-//                        isHelperVerified = isVerifiedFromFirestore
-//                    )
-//
-//                    println("🔥 userData after fix = $userData")
-//
-//
-//
-////                    userData = fetchedUser?.copy(userId = uid)
-////
-////
-////                    // Debug: check real value from Firestore
-////                    val rawIsVerified = doc.getBoolean("isHelperVerified")
-////                    println("🔥 Firestore field isHelperVerified = $rawIsVerified")
-////                    println("🔥 userData after copy = $userData")
-//
-//                    isLoading = false
-//                }
-//                .addOnFailureListener {
-//                    userData = null
-//                    isLoading = false
-//                }
-//        } ?: run { isLoading = false }
-////            val doc = Firebase.firestore.collection("users").document(uid).get()
-////                .addOnSuccessListener { doc ->
-////            userData = doc.toObject(UserData::class.java)
-////
-////                    println("🔥 userData fetched: $userData")
-////                    println("🔥 isHelperVerified = ${userData?.isHelperVerified}")
-////                    }
-////        }
-////    }
-//    LaunchedEffect(currentUser?.uid) {
-//        isLoading = true
-//        currentUser?.uid?.let { uid ->
-//            try {
-//                val doc = Firebase.firestore.collection("users").document(uid).get().await()
-//                val fetchedUser = doc.toObject(UserData::class.java)
-//                val isVerified = doc.getBoolean("isHelperVerified") ?: false
-//                userData = fetchedUser?.copy(userId = uid, isHelperVerified = isVerified)
-//
-//
-//                    println("🔥 userData after fix = $userData")
-//
-//                isLoggedIn = true
-//            } catch (e: Exception) {
-//                userData = null
-//                isLoggedIn = false
-//            }
-//        }
-//        isLoading = false
-//    }
-
-
-
-    val requiresVerification =
-        (userData?.userType == "helper" || userData?.userType == "user_helper")
-
-
-    // Initialize movement view model
-    LaunchedEffect(Unit) {
-        movementViewModel.initialize(context)
-    }
-
-    // Initialize location for SOS
-    LaunchedEffect(Unit) {
-        sosViewModel.initLocationClient(context)
-    }
-
-    // Fetch user data when logged in
     LaunchedEffect(key1 = auth.currentUser) {
-
-
-    LaunchedEffect(currentUser?.uid) {
         isLoading = true
-        val currentUser = Firebase.auth.currentUser
+        delay(500)
+        val currentUser = auth.currentUser
+        isLoggedIn = currentUser != null
 
-        if (currentUser != null) {
-            try {
-                val doc = Firebase.firestore.collection("users").document(currentUser.uid).get().await()
-                val fetchedUser = doc.toObject(UserData::class.java)
-                val isVerified = doc.getBoolean("isHelperVerified") ?: false
-                userData = fetchedUser?.copy(userId = currentUser.uid, isHelperVerified = isVerified)
-
-
-
-                println("🔥 userData after fix = $userData")
-
-
-
-                 //✅ Set login state here
-                isLoggedIn = true
-
-
-            } catch (e: Exception) {
-                userData = null
-                isLoggedIn = false
-            }
+        if (isLoggedIn == true && currentUser != null) {
+            firestore.collection("users").document(currentUser.uid).get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        userData = document.toObject(UserData::class.java)?.copy(userId = currentUser.uid)
+                        appMode = if (userData?.userType == "helper") AppMode.HELPER else AppMode.USER
+                    }
+                    isLoading = false
+                }
+                .addOnFailureListener { isLoading = false }
         } else {
-            isLoggedIn = false
-            userData = null
+            isLoading = false
         }
-
-        isLoading = false
     }
 
-    // Show loading indicator
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
-    }
-    // Check login status
-    else if (isLoggedIn == false) {
+    } else if (isLoggedIn == false) {
         LoginSignupScreen(
-            onLoginSuccess = {
-                isLoggedIn = true
-                currentDestination = AppDestinations.HOME
-            },
-            onSwitchToHelperMode = {
-                // Not needed here, handled by userType selection
-            }
+            onLoginSuccess = { isLoggedIn = true; currentDestination = AppDestinations.HOME },
+            onSwitchToHelperMode = {}
         )
-    }
-    else if (isLoggedIn == true) {
-
-
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-
-        }
-        else if ((userData?.userType == "helper"|| userData?.userType == "user_helper") && userData?.isHelperVerified == false) {
+    } else {
+        if ((userData?.userType == "helper" || userData?.userType == "user_helper") && userData?.isHelperVerified == false) {
             VerificationScreen(
                 onVerificationComplete = {
-                    // Update Firestore
-                    Firebase.firestore.collection("users")
-                        .document(currentUser!!.uid)
-                        .update("isHelperVerified", true)
-
+                    firestore.collection("users").document(auth.currentUser!!.uid).update("isHelperVerified", true)
                     userData = userData?.copy(isHelperVerified = true)
-
                 },
-                onBackToLogin = {
-                    // Force logout / go back to login
-                    Firebase.auth.signOut()
-                    isLoggedIn = false
-                    userData = null
-                }
+                onBackToLogin = { auth.signOut(); isLoggedIn = false }
             )
-        }
-        // ✅ STEP 2: ONLY AFTER VERIFICATION → ENTER APP
-        else {
+        } else {
             when (userData?.userType) {
-                "helper" -> {
-                    HelperModeApp(
-                        onSwitchToUserMode = null,
-                        onLogout = {
-                            auth.signOut()
-                            isLoggedIn = false
-                            userData = null
-                            movementViewModel.stopMonitoring()
-                        },
-                        userData = userData
-                    )
-                }
-
-                "user" -> {
-                    if (showMovementScreen) {
-                        MovementDetectionScreen(
-                            onBack = { showMovementScreen = false },
-                            onAbnormalMovementDetected = { type, confidence ->
-                                println("🚨 Abnormal movement detected: $type ($confidence)")
-                            }
-                        )
-                    } else {
-                        UserModeApp(
-                            currentDestination = currentDestination,
-                            onDestinationChange = { currentDestination = it },
-                            onLogout = {
-                                auth.signOut()
-                                isLoggedIn = false
-                                userData = null
-                                movementViewModel.stopMonitoring()
-                            },
-                            showSwitchToHelper = false,
-                            movementViewModel = movementViewModel,
-                            onMovementScreenClick = { showMovementScreen = true }
-                        )
-                    }
-                }
-
-                "user_helper" -> {
-                    if (appMode == AppMode.USER) {
-        // Determine what to show based on user type
-        when (userData?.userType) {
-            "helper" -> {
-                // Helper only
-                HelperModeApp(
+                "helper" -> HelperModeApp(
                     onSwitchToUserMode = null,
-                    onLogout = {
-                        auth.signOut()
-                        isLoggedIn = false
-                        userData = null
-                        movementViewModel.stopMonitoring()
-                    },
+                    onLogout = { auth.signOut(); isLoggedIn = false; movementViewModel.stopMonitoring() },
                     userData = userData
                 )
-            }
-            "user" -> {
-                // User only - check if showing movement screen or normal app
-                if (showMovementScreen) {
-                    MovementDetectionScreen(
-                        onBack = { showMovementScreen = false },
-                        onAbnormalMovementDetected = { type, confidence ->
-                            println("🚨 Abnormal movement detected: $type ($confidence)")
-                        },
-                        // FIXED: Pass SOS trigger
-                        onTriggerSOS = { reason ->
-                            println("SOS Triggered by Movement: $reason")
-                            sosViewModel.sendSosAlert(context)
+                else -> {
+                    if (appMode == AppMode.USER) {
+                        if (showMovementScreen) {
+                            MovementDetectionScreen(
+                                onBack = { showMovementScreen = false },
+                                onAbnormalMovementDetected = { _, _ -> },
+                                onTriggerSOS = { sosViewModel.sendSosAlert(context) }
+                            )
+                        } else {
+                            UserModeApp(
+                                currentDestination = currentDestination,
+                                onDestinationChange = { currentDestination = it },
+                                onLogout = { auth.signOut(); isLoggedIn = false; movementViewModel.stopMonitoring() },
+                                showSwitchToHelper = userData?.userType == "user_helper",
+                                movementViewModel = movementViewModel,
+                                sosViewModel = sosViewModel,
+                                onMovementScreenClick = { showMovementScreen = true },
+                                onSwitchToHelperMode = { appMode = AppMode.HELPER }
+                            )
                         }
-                    )
-                } else {
-                    UserModeApp(
-                        currentDestination = currentDestination,
-                        onDestinationChange = { currentDestination = it },
-                        onLogout = {
-                            auth.signOut()
-                            isLoggedIn = false
-                            userData = null
-                            movementViewModel.stopMonitoring()
-                        },
-                        showSwitchToHelper = false,
-                        movementViewModel = movementViewModel,
-                        onMovementScreenClick = { showMovementScreen = true }
-                    )
-                }
-            }
-            "user_helper" -> {
-                // User+Helper - can switch between modes
-                if (appMode == AppMode.USER) {
-                    if (showMovementScreen) {
-                        MovementDetectionScreen(
-                            onBack = { showMovementScreen = false },
-                            onAbnormalMovementDetected = { type, confidence ->
-                                println("🚨 Abnormal movement detected: $type ($confidence)")
-                            },
-                            // FIXED: Pass SOS trigger
-                            onTriggerSOS = { reason ->
-                                println("SOS Triggered by Movement: $reason")
-                                sosViewModel.sendSosAlert(context)
-                            }
-                        )
-                    } else {
-                        UserModeApp(
-                            currentDestination = currentDestination,
-                            onDestinationChange = { currentDestination = it },
-                            onLogout = {
-                                auth.signOut()
-                                isLoggedIn = false
-                                userData = null
-                                movementViewModel.stopMonitoring()
-                            },
-                            showSwitchToHelper = true,
-                            onSwitchToHelperMode = { appMode = AppMode.HELPER },
-                            movementViewModel = movementViewModel,
-                            onMovementScreenClick = { showMovementScreen = true }
-                        )
-                    }
-                } else {
-                    HelperModeApp(
-                        onSwitchToUserMode = {
-                            appMode = AppMode.USER
-                            movementViewModel.stopMonitoring()
-                        },
-                        onLogout = {
-                            auth.signOut()
-                            isLoggedIn = false
-                            userData = null
-                            movementViewModel.stopMonitoring()
-                        },
-                        userData = userData
-                    )
-                }
-            }
-            else -> {
-                // Default fallback
-                if (showMovementScreen) {
-                    MovementDetectionScreen(
-                        onBack = { showMovementScreen = false },
-                        onAbnormalMovementDetected = { type, confidence ->
-                            println("🚨 Abnormal movement detected: $type ($confidence)")
-                        },
-                        // FIXED: Pass SOS trigger
-                        onTriggerSOS = { reason ->
-                            println("SOS Triggered by Movement: $reason")
-                            sosViewModel.sendSosAlert(context)
-                        }
-                    )
-                } else {
-                    UserModeApp(
-                        currentDestination = currentDestination,
-                        onDestinationChange = { currentDestination = it },
-                        onLogout = {
-                            auth.signOut()
-                            isLoggedIn = false
-                            userData = null
-                            movementViewModel.stopMonitoring()
-                        },
-                        showSwitchToHelper = false,
-                        movementViewModel = movementViewModel,
-                        onMovementScreenClick = { showMovementScreen = true }
-                    )
                     } else {
                         HelperModeApp(
-                            onSwitchToUserMode = {
-                                appMode = AppMode.USER
-                            },
-                            onLogout = {
-                                auth.signOut()
-                                isLoggedIn = false
-                                userData = null
-                                movementViewModel.stopMonitoring()
-                            },
+                            onSwitchToUserMode = { appMode = AppMode.USER; movementViewModel.stopMonitoring() },
+                            onLogout = { auth.signOut(); isLoggedIn = false; movementViewModel.stopMonitoring() },
                             userData = userData
                         )
                     }
                 }
             }
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // Determine what to show based on user type
-//        when (userData?.userType) {
-//            "helper" -> {
-//                // Helper only
-//                HelperModeApp(
-//                    onSwitchToUserMode = null,
-//                    onLogout = {
-//                        auth.signOut()
-//                        isLoggedIn = false
-//                        userData = null
-//                        movementViewModel.stopMonitoring()
-//                    },
-//                    userData = userData
-//                )
-//            }
-//            "user" -> {
-//                // User only - check if showing movement screen or normal app
-//                if (showMovementScreen) {
-//                    MovementDetectionScreen(
-//                        onBack = { showMovementScreen = false },
-//                        onAbnormalMovementDetected = { type, confidence ->
-//                            println("🚨 Abnormal movement detected: $type ($confidence)")
-//                        }
-//                    )
-//                } else {
-//                    UserModeApp(
-//                        currentDestination = currentDestination,
-//                        onDestinationChange = { currentDestination = it },
-//                        onLogout = {
-//                            auth.signOut()
-//                            isLoggedIn = false
-//                            userData = null
-//                            movementViewModel.stopMonitoring()
-//                        },
-//                        showSwitchToHelper = false,
-//                        movementViewModel = movementViewModel,
-//                        onMovementScreenClick = { showMovementScreen = true }
-//                    )
-//                }
-//            }
-//            "user_helper" -> {
-//                // User+Helper - can switch between modes
-//                if (appMode == AppMode.USER) {
-//                    if (showMovementScreen) {
-//                        MovementDetectionScreen(
-//                            onBack = { showMovementScreen = false },
-//                            onAbnormalMovementDetected = { type, confidence ->
-//                                println("🚨 Abnormal movement detected: $type ($confidence)")
-//                            }
-//                        )
-//                    } else {
-//                        UserModeApp(
-//                            currentDestination = currentDestination,
-//                            onDestinationChange = { currentDestination = it },
-//                            onLogout = {
-//                                auth.signOut()
-//                                isLoggedIn = false
-//                                userData = null
-//                                movementViewModel.stopMonitoring()
-//                            },
-//                            showSwitchToHelper = true,
-//                            onSwitchToHelperMode = { appMode = AppMode.HELPER },
-//                            movementViewModel = movementViewModel,
-//                            onMovementScreenClick = { showMovementScreen = true }
-//                        )
-//                    }
-//                } else {
-//                    HelperModeApp(
-//                        onSwitchToUserMode = {
-//                            appMode = AppMode.USER
-//                            movementViewModel.stopMonitoring()
-//                        },
-//                        onLogout = {
-//                            auth.signOut()
-//                            isLoggedIn = false
-//                            userData = null
-//                            movementViewModel.stopMonitoring()
-//                        },
-//                        userData = userData
-//                    )
-//                }
-//            }
-//            else -> {
-//                // Default fallback
-//                if (showMovementScreen) {
-//                    MovementDetectionScreen(
-//                        onBack = { showMovementScreen = false },
-//                        onAbnormalMovementDetected = { type, confidence ->
-//                            println("🚨 Abnormal movement detected: $type ($confidence)")
-//                        }
-//                    )
-//                } else {
-//                    UserModeApp(
-//                        currentDestination = currentDestination,
-//                        onDestinationChange = { currentDestination = it },
-//                        onLogout = {
-//                            auth.signOut()
-//                            isLoggedIn = false
-//                            userData = null
-//                            movementViewModel.stopMonitoring()
-//                        },
-//                        showSwitchToHelper = false,
-//                        movementViewModel = movementViewModel,
-//                        onMovementScreenClick = { showMovementScreen = true }
-//                    )
-//                }
-//            }
-//        }
     }
 }
 
@@ -583,66 +178,42 @@ fun UserModeApp(
     onLogout: () -> Unit,
     showSwitchToHelper: Boolean,
     movementViewModel: MovementViewModel,
+    sosViewModel: SosViewModel,
     onMovementScreenClick: () -> Unit,
     onSwitchToHelperMode: (() -> Unit)? = null
 ) {
-    // Collect movement state - kept for badge indicator in HomeScreen
-    val movementState by movementViewModel.movementState.collectAsState()
-
     Scaffold(
         bottomBar = {
             NavigationBar {
-                // Show only main tabs in bottom navigation (first 5)
-                listOf(
-                    AppDestinations.HOME,
-                    AppDestinations.CONTACTS,
-                    AppDestinations.MAP,
-                    AppDestinations.AI,
-                    AppDestinations.PROFILE
-                ).forEach { destination ->
+                listOf(AppDestinations.HOME, AppDestinations.CONTACTS, AppDestinations.MAP, AppDestinations.AI, AppDestinations.PROFILE).forEach { dest ->
                     NavigationBarItem(
-                        selected = currentDestination == destination,
-                        onClick = { onDestinationChange(destination) },
-                        icon = {
-                            Icon(destination.icon, destination.label)
-                        },
-                        label = { Text(destination.label) }
+                        selected = currentDestination == dest,
+                        onClick = { onDestinationChange(dest) },
+                        icon = { Icon(dest.icon, dest.label) },
+                        label = { Text(dest.label) }
                     )
                 }
             }
         },
         floatingActionButton = {
             if (showSwitchToHelper && onSwitchToHelperMode != null) {
-                FloatingActionButton(
-                    onClick = {
-                        // FIX 2: Just call the function. Don't try to set appMode here.
-                        onSwitchToHelperMode()
-                    },
-                        onSwitchToHelperMode.invoke()
-                    },
-                    containerColor = Color(0xFF6200EE)
-                ) {
-                    Icon(
-                        Icons.Default.SupervisorAccount,
-                        "Switch to Helper Mode",
-                        tint = Color.White
-                    )
+                FloatingActionButton(onClick = onSwitchToHelperMode, containerColor = Color(0xFF6200EE)) {
+                    Icon(Icons.Default.SupervisorAccount, "Switch to Helper", tint = Color.White)
                 }
             }
         }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (currentDestination) {
                 AppDestinations.HOME -> HomeScreen(
                     movementViewModel = movementViewModel,
-                    onCardOneClick = { onDestinationChange(AppDestinations.HOME) },
-                    onCardTwoClick = { onDestinationChange(AppDestinations.HOME) },
-                    onCardFiveClick = { onDestinationChange(AppDestinations.HOME) },
+                    sosViewModel = sosViewModel, // ✅ FIXED: Passing the actual ViewModel object
+                    onCardOneClick = { },
+                    onCardTwoClick = { },
+                    onCardFiveClick = { },
                     onMovementScreenClick = onMovementScreenClick
                 )
-                AppDestinations.CONTACTS -> TrustedContactsScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
+                AppDestinations.CONTACTS -> TrustedContactsScreen { onDestinationChange(AppDestinations.PROFILE) }
                 AppDestinations.MAP -> GeneralMapScreen()
                 AppDestinations.AI -> AiHelpScreen()
                 AppDestinations.PROFILE -> ProfileScreen(
@@ -657,33 +228,17 @@ fun UserModeApp(
                     onNavigateToContactSupport = { onDestinationChange(AppDestinations.CONTACT_SUPPORT) },
                     onNavigateToAbout = { onDestinationChange(AppDestinations.ABOUT) }
                 )
-                // Add new destination screens
-                AppDestinations.SOS_SETTINGS -> SosSettingsScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.NOTIFICATIONS -> NotificationsSettingsScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.PRIVACY -> PrivacySettingsScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.DATA_STORAGE -> DataStorageScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.HELP_CENTER -> HelpCenterScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.CONTACT_SUPPORT -> ContactSupportScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
-                AppDestinations.ABOUT -> AboutScreen(
-                    onBack = { onDestinationChange(AppDestinations.PROFILE) }
-                )
+                AppDestinations.SOS_SETTINGS -> SosSettingsScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.NOTIFICATIONS -> NotificationsSettingsScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.PRIVACY -> PrivacySettingsScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.DATA_STORAGE -> DataStorageScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.HELP_CENTER -> HelpCenterScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.CONTACT_SUPPORT -> ContactSupportScreen { onDestinationChange(AppDestinations.PROFILE) }
+                AppDestinations.ABOUT -> AboutScreen { onDestinationChange(AppDestinations.PROFILE) }
             }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HelperModeApp(
@@ -691,8 +246,9 @@ fun HelperModeApp(
     onLogout: () -> Unit,
     userData: UserData?
 ) {
-    val context = LocalContext.current
     var currentScreen by rememberSaveable { mutableStateOf(HelperScreen.DASHBOARD) }
+    // ✅ FIX: Extract context here to avoid "@Composable invocations" error inside the lambda
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -701,34 +257,19 @@ fun HelperModeApp(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Helper Mode", color = Color.White, fontWeight = FontWeight.Bold)
                         if (userData?.gender == "male") {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(Color.White, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    "MALE HELPER",
-                                    color = Color(0xFF1976D2),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Spacer(Modifier.width(8.dp))
+                            Surface(color = Color.White, shape = RoundedCornerShape(4.dp)) {
+                                Text("MALE HELPER", color = Color(0xFF1976D2), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp))
                             }
                         }
                     }
                 },
                 actions = {
-                    if (onSwitchToUserMode != null) {
-                        IconButton(
-                            onClick = onSwitchToUserMode
-                        ) {
-                            Icon(Icons.Default.SwitchAccount, "Switch to User Mode", tint = Color.White)
-                        }
+                    onSwitchToUserMode?.let {
+                        IconButton(onClick = it) { Icon(Icons.Filled.SwitchAccount, null, tint = Color.White) }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF1976D2)
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color(0xFF1976D2))
             )
         },
         bottomBar = {
@@ -739,74 +280,39 @@ fun HelperModeApp(
                         onClick = { currentScreen = screen },
                         icon = {
                             Icon(
-                                when(screen) {
-                                    HelperScreen.DASHBOARD -> Icons.Default.Dashboard
-                                    HelperScreen.ALERTS -> Icons.Default.Notifications
-                                    HelperScreen.PROFILE -> Icons.Default.Person
-                                    HelperScreen.SUPPORT -> Icons.Default.Help
-                                    HelperScreen.HISTORY -> Icons.Default.History
+                                imageVector = when(screen) {
+                                    HelperScreen.DASHBOARD -> Icons.Filled.Dashboard
+                                    HelperScreen.ALERTS -> Icons.Filled.Notifications
+                                    HelperScreen.PROFILE -> Icons.Filled.Person
+                                    HelperScreen.SUPPORT -> Icons.Filled.Info
+                                    HelperScreen.HISTORY -> Icons.Filled.List
                                 },
-                                screen.name
+                                contentDescription = null
                             )
                         },
-                        label = {
-                            Text(
-                                when(screen) {
-                                    HelperScreen.DASHBOARD -> "Dashboard"
-                                    HelperScreen.ALERTS -> "Alerts"
-                                    HelperScreen.PROFILE -> "Profile"
-                                    HelperScreen.SUPPORT -> "Help"
-                                    HelperScreen.HISTORY -> "History"
-                                }
-                            )
-                        }
+                        label = { Text(screen.name.lowercase().capitalize()) }
                     )
                 }
             }
         }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
             when (currentScreen) {
-                HelperScreen.DASHBOARD -> Column(modifier = Modifier.fillMaxSize()) {
-                    HelperDashboard(
-                        onNavigate = { screen: HelperScreen ->
-                            currentScreen = screen
-                        },
-                        onSwitchToUserMode = onSwitchToUserMode,
-                        onAcceptAlert = { alert ->
-                            Toast.makeText(context, "Accepted alert: ${alert.userName}", Toast.LENGTH_SHORT).show()
-                            currentScreen = HelperScreen.ALERTS
-                        },
-                        userData = userData
-                    )
-                }
-                HelperScreen.ALERTS -> HelperAlertsScreen(
-                    onBack = { currentScreen = HelperScreen.DASHBOARD },
-                    onNavigateToMap = {
-                        Toast.makeText(context, "Map Navigation", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                HelperScreen.PROFILE -> HelperProfileScreen(
-                    onBack = { currentScreen = HelperScreen.DASHBOARD },
-                    onLogout = onLogout,
+                HelperScreen.DASHBOARD -> HelperDashboard(
+                    onNavigate = { currentScreen = it },
+                    onSwitchToUserMode = onSwitchToUserMode,
+                    onAcceptAlert = {
+                        // ✅ FIX: Use the 'context' variable from above
+                        Toast.makeText(context, "Alert Accepted", Toast.LENGTH_SHORT).show()
+                        currentScreen = HelperScreen.ALERTS
+                    },
                     userData = userData
                 )
-                // FIXED: Support screen navigation connected here
-                HelperScreen.SUPPORT -> HelperSupportScreen(
-                    onBack = { currentScreen = HelperScreen.DASHBOARD }
-                )
-                HelperScreen.HISTORY -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("History Screen Placeholder")
-                }
+                HelperScreen.ALERTS -> HelperAlertsScreen(onBack = { currentScreen = HelperScreen.DASHBOARD }, onNavigateToMap = {})
+                HelperScreen.PROFILE -> HelperProfileScreen(onBack = { currentScreen = HelperScreen.DASHBOARD }, onLogout = onLogout, userData = userData)
+                HelperScreen.SUPPORT -> HelperSupportScreen(onBack = { currentScreen = HelperScreen.DASHBOARD })
+                HelperScreen.HISTORY -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("History Placeholder") }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SheShieldAppPreview() {
-    SheShieldTheme {
-        SheShieldApp()
     }
 }
