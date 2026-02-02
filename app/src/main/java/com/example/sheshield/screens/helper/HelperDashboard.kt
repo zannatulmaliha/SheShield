@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
+import com.google.firebase.firestore.Query
 import com.example.sheshield.navigation.HelperScreen
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
@@ -207,6 +208,79 @@ fun HelperDashboard(
                 val loc = Location("").apply { latitude = it.location.latitude; longitude = it.location.longitude }
                 (helperLocation!!.distanceTo(loc) / 1000) > radiusKm
             }
+        }
+    }
+
+    // 1. Get Helper's Current Location when they go Active
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            try {
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                // We assume permission is granted since you handle it in MainActivity
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        helperLocation = location
+                        Log.d("HelperDashboard", "Helper Location found: ${location.latitude}, ${location.longitude}")
+                    } else {
+                        Log.w("HelperDashboard", "Helper Location is null")
+                    }
+                }
+            } catch (e: SecurityException) {
+                Log.e("HelperDashboard", "Location permission missing", e)
+            }
+        }
+    }
+
+    // 2. Listen to Firestore and Filter by Distance
+    LaunchedEffect(isActive, helperLocation) {
+        if (isActive && helperLocation != null) {
+            val db = FirebaseFirestore.getInstance()
+            val radiusKm = userData?.responseRadius ?: 5 // Default to 5km if null
+
+            // Listen to ALL active alerts
+            // We order by timestamp descending to see newest first
+            val registration = db.collection("alerts")
+                .whereEqualTo("status", "active")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshots, e ->
+                    if (e != null) {
+                        Log.w("HelperDashboard", "Listen failed.", e)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshots != null) {
+                        nearbyAlerts.clear()
+                        for (doc in snapshots) {
+                            try {
+                                val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
+
+                                // --- DISTANCE FILTERING LOGIC ---
+                                // Create a Location object for the alert
+                                val alertLoc = Location("alert")
+                                alertLoc.latitude = alert.location.latitude
+                                alertLoc.longitude = alert.location.longitude
+
+                                // Calculate distance
+                                val distanceInMeters = helperLocation!!.distanceTo(alertLoc)
+                                val distanceInKm = distanceInMeters / 1000
+
+                                Log.d("HelperDashboard", "Alert ${alert.userName} is $distanceInKm km away")
+
+                                // Only add if within radius (and not your own alert)
+                                if (distanceInKm <= radiusKm && alert.userId != userData?.userId) {
+                                    nearbyAlerts.add(alert)
+                                }
+                                // -------------------------------
+
+                            } catch (err: Exception) {
+                                Log.e("HelperDashboard", "Error parsing alert", err)
+                            }
+                        }
+                    }
+                }
+        } else {
+            // If inactive, clear list
+            nearbyAlerts.clear()
         }
     }
 

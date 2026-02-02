@@ -624,8 +624,8 @@ fun cardFour() {
             modifier = Modifier.width(90.dp).height(90.dp)
         )
         Column {
-            Text("Safety Map", fontWeight = FontWeight.Medium)
-            Text("View risk areas", color = Color.Gray, fontSize = 14.sp)
+            Text("Safety Analytics", fontWeight = FontWeight.Medium)
+            Text("Monitor safety patterns", color = Color.Gray, fontSize = 14.sp)
         }
     }
 }

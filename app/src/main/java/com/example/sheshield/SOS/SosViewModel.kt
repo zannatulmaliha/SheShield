@@ -143,7 +143,6 @@ class SosViewModel(
                 // 2. Get user location
                 val location = getLocation(context)
                 val locationString = if (location != null) {
-                    // Standard Google Maps Link
                     "http://googleusercontent.com/maps.google.com/?q=${location.latitude},${location.longitude}"
                 } else {
                     "Location unavailable - GPS disabled or no permission"
