@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
+import com.example.sheshield.screens.helper.HelperSupportScreen
 // Kept tracking logic so the map feature still works
 //import com.example.sheshield.screens.helper.HelperTrackingLogic
 

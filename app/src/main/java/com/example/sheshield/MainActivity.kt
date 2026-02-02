@@ -26,10 +26,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.SosViewModel
 import com.example.sheshield.models.UserData
 import com.example.sheshield.screens.*
-import com.example.sheshield.screens.helper.HelperAlertsScreen // Using HelperAlertsScreen instead of Content for standalone
+import com.example.sheshield.screens.helper.HelperAlertsScreen
 import com.example.sheshield.screens.helper.HelperScreen
 import com.example.sheshield.screens.helper.HelperDashboard
 import com.example.sheshield.screens.helper.HelperProfileScreen
+import com.example.sheshield.screens.helper.HelperSupportScreen // ADDED: Import for Support Screen
 import com.example.sheshield.ui.theme.SheShieldTheme
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -499,9 +500,10 @@ fun HelperModeApp(
                     onLogout = onLogout,
                     userData = userData
                 )
-                HelperScreen.SUPPORT -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("Support Screen Placeholder")
-                }
+                // FIXED: Support screen navigation connected here
+                HelperScreen.SUPPORT -> HelperSupportScreen(
+                    onBack = { currentScreen = HelperScreen.DASHBOARD }
+                )
                 HelperScreen.HISTORY -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Text("History Screen Placeholder")
                 }
