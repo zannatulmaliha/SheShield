@@ -54,7 +54,7 @@ class UserMonitoringViewModel : ViewModel() {
             "timestamp" to System.currentTimeMillis(),
             "senderId" to victimId, // The ID of the person in danger
             "reportedBy" to currentUser.uid, // The ID of the contact reporting it
-            "locationString" to "https://www.google.com/maps?q=$${currentLocation.latitude},${currentLocation.longitude}",
+            "locationString" to "https://www.google.com/maps/search/?api=1&query=${currentLocation.latitude},${currentLocation.longitude}",
             // Add raw coordinates for Helper geo-queries
             "latitude" to currentLocation.latitude,
             "longitude" to currentLocation.longitude
