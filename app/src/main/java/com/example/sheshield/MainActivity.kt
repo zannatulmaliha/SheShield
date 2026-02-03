@@ -214,7 +214,6 @@ fun SheShieldApp() {
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserModeApp(
@@ -242,8 +241,14 @@ fun UserModeApp(
         },
         floatingActionButton = {
             if (showSwitchToHelper && onSwitchToHelperMode != null) {
-                FloatingActionButton(onClick = onSwitchToHelperMode, containerColor = Color(0xFF6200EE)) {
-                    Icon(Icons.Default.SupervisorAccount, "Switch to Helper", tint = Color.White)
+                // Wrap in a Box to move the button higher
+                Box(modifier = Modifier.padding(bottom = 65.dp)) {
+                    FloatingActionButton(
+                        onClick = onSwitchToHelperMode,
+                        containerColor = Color(0xFF6200EE)
+                    ) {
+                        Icon(Icons.Default.SupervisorAccount, "Switch to Helper", tint = Color.White)
+                    }
                 }
             }
         }
@@ -252,7 +257,7 @@ fun UserModeApp(
             when (currentDestination) {
                 AppDestinations.HOME -> HomeScreen(
                     movementViewModel = movementViewModel,
-                    sosViewModel = sosViewModel, // ✅ FIXED: Passing the actual ViewModel object
+                    sosViewModel = sosViewModel,
                     onCardOneClick = { },
                     onCardTwoClick = { },
                     onCardFiveClick = { },

@@ -3,42 +3,20 @@ package com.example.sheshield.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,15 +26,21 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-// Country data class
+// --- Midnight Theme Palette ---
+private val MidnightBase = Color(0xFF0B0F1A)
+private val TopBarDeep = Color(0xFF1E1B4B)
+private val GlassWhite = Color(0xFFFFFFFF).copy(alpha = 0.05f)
+private val GlassBorder = Color(0xFFFFFFFF).copy(alpha = 0.1f)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val AccentEmerald = Color(0xFF10B981)
+private val AccentBlue = Color(0xFF3B82F6)
+private val AccentAmber = Color(0xFFF59E0B)
+private val DangerRose = Color(0xFFFB7185)
+
 data class Country(
-    val code: String,
-    val name: String,
-    val flag: String,
-    val dialCode: String
+    val code: String, val name: String, val flag: String, val dialCode: String
 )
 
-// List of common countries
 val countries = listOf(
     Country("BD", "Bangladesh", "🇧🇩", "+880"),
     Country("US", "United States", "🇺🇸", "+1"),
@@ -98,28 +82,21 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // State for personal information
     var userEmail by remember { mutableStateOf("") }
     var userPhone by remember { mutableStateOf("") }
     var userAddress by remember { mutableStateOf("") }
     var userName by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
-
-    // State for switches and settings
     var isAppLockEnabled by remember { mutableStateOf(true) }
-    var isVoiceEnabled by remember { mutableStateOf(false) }
 
-    // State for dialogs
     var showEmailDialog by remember { mutableStateOf(false) }
     var showPhoneDialog by remember { mutableStateOf(false) }
     var showAddressDialog by remember { mutableStateOf(false) }
 
-    // Load user data from Firebase
     LaunchedEffect(key1 = auth.currentUser) {
         val userId = auth.currentUser?.uid
         if (userId != null) {
             userEmail = auth.currentUser?.email ?: "No email"
-
             db.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
@@ -127,204 +104,254 @@ fun ProfileScreen(
                         userAddress = document.getString("address") ?: ""
                         userName = document.getString("name") ?: "User"
                         isAppLockEnabled = document.getBoolean("appLock") ?: true
-                        isVoiceEnabled = document.getBoolean("voiceProtection") ?: false
                     } else {
                         val userData = hashMapOf(
-                            "email" to userEmail,
-                            "phone" to "",
-                            "address" to "",
-                            "name" to userEmail.substringBefore("@"),
-                            "appLock" to true,
-                            "voiceProtection" to false,
+                            "email" to userEmail, "phone" to "", "address" to "",
+                            "name" to userEmail.substringBefore("@"), "appLock" to true,
                             "createdAt" to System.currentTimeMillis()
                         )
                         db.collection("users").document(userId).set(userData)
-                        userPhone = ""
-                        userAddress = ""
                         userName = userEmail.substringBefore("@")
                     }
                     isLoading = false
                 }
-                .addOnFailureListener {
-                    userPhone = ""
-                    userAddress = ""
-                    userName = "User"
-                    isLoading = false
-                }
-        } else {
-            isLoading = false
+                .addOnFailureListener { isLoading = false }
         }
     }
 
-    // Save data to Firebase function
     fun saveToFirebase(field: String, value: Any) {
         val userId = auth.currentUser?.uid ?: return
-
-        val updateData = hashMapOf<String, Any>(
-            field to value,
-            "updatedAt" to System.currentTimeMillis()
-        )
-
-        db.collection("users").document(userId)
-            .update(updateData)
-            .addOnSuccessListener {
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        "✅ Updated successfully!",
-                        duration = SnackbarDuration.Short
-                    )
-                }
-            }
-            .addOnFailureListener { e ->
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        "❌ Failed to update",
-                        duration = SnackbarDuration.Short
-                    )
-                }
-            }
+        db.collection("users").document(userId).update(hashMapOf(field to value, "updatedAt" to System.currentTimeMillis()))
+            .addOnSuccessListener { scope.launch { snackbarHostState.showSnackbar("✅ Settings Synced") } }
     }
 
-    // Dialogs
-    if (showEmailDialog) {
-        EditEmailDialog(
-            currentEmail = userEmail,
-            onDismiss = { showEmailDialog = false },
-            onSave = { newEmail ->
-                saveToFirebase("email", newEmail)
-                userEmail = newEmail
-                showEmailDialog = false
-            }
-        )
-    }
+    // Dialog Triggers
+    if (showEmailDialog) EditEmailDialog(userEmail, { showEmailDialog = false }, { userEmail = it; saveToFirebase("email", it) })
+    if (showPhoneDialog) EnhancedPhoneDialog(userPhone, { showPhoneDialog = false }, { userPhone = it; saveToFirebase("phone", it) })
+    if (showAddressDialog) EnhancedAddressDialog(userAddress, { showAddressDialog = false }, { userAddress = it; saveToFirebase("address", it) })
 
-    if (showPhoneDialog) {
-        EnhancedPhoneDialog(
-            currentPhone = userPhone,
-            onDismiss = { showPhoneDialog = false },
-            onSave = { newPhone ->
-                saveToFirebase("phone", newPhone)
-                userPhone = newPhone
-                showPhoneDialog = false
-            }
-        )
-    }
-
-    if (showAddressDialog) {
-        EnhancedAddressDialog(
-            currentAddress = userAddress,
-            onDismiss = { showAddressDialog = false },
-            onSave = { newAddress ->
-                saveToFirebase("address", newAddress)
-                userAddress = newAddress
-                showAddressDialog = false
-            }
-        )
-    }
-
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+    Box(modifier = Modifier.fillMaxSize().background(MidnightBase)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             val scrollState = rememberScrollState()
-            Column(
-                verticalArrangement = Arrangement.spacedBy(15.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(scrollState)
-                    .padding(bottom = 35.dp)
-            ) {
-                profile_settings(userName = userName)
+            Column(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
+
+                ProfileHeader(userName)
 
                 if (isLoading) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFF6200EE))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Loading profile...", color = Color.Gray)
+                    Box(modifier = Modifier.fillMaxWidth().padding(50.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = AccentPurple)
                     }
                 } else {
-                    Column(
-                        modifier = Modifier.padding(25.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text("PERSONAL INFORMATION", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
 
-                        personal_info(
-                            email = userEmail,
-                            phone = if (userPhone.isEmpty()) "Tap to add phone" else formatPhoneForDisplay(userPhone),
-                            address = if (userAddress.isEmpty()) "Tap to add address" else userAddress,
-                            onEmailClick = { showEmailDialog = true },
-                            onPhoneClick = { showPhoneDialog = true },
-                            onAddressClick = { showAddressDialog = true }
-                        )
+                        SectionTitle("ACCOUNT DETAILS")
+                        PersonalCard(userEmail, userPhone, userAddress, {showEmailDialog=true}, {showPhoneDialog=true}, {showAddressDialog=true})
 
-                        Text("SAFETY SETTINGS", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        safety_settings(
-                            onSOSClick = onNavigateToSOS,
-                            onContactsClick = onNavigateToContacts,
-                            onNotificationsClick = onNavigateToNotifications
-                        )
+                       // SectionTitle("PROTECTION")
+                    //  SafetyCard(onSOSClick, onNavigateToContacts, onNavigateToNotifications)
 
-                        Text("PRIVACY & SECURITY", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        privacy_security(
-                            onPrivacyClick = onNavigateToPrivacy,
-                            onDataStorageClick = onNavigateToDataStorage,
-                            isAppLockEnabled = isAppLockEnabled,
-                            onAppLockToggle = { enabled ->
-                                isAppLockEnabled = enabled
-                                saveToFirebase("appLock", enabled)
-                            }
-                        )
-
-                        Text("SUPPORT & INFORMATION", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Support_info(
-                            onHelpCenterClick = onNavigateToHelpCenter,
-                            onContactSupportClick = onNavigateToContactSupport,
-                            onAboutClick = onNavigateToAbout
-                        )
-
-                        verified_users()
-
-                        // Voice Protection Toggle
-
-                        Button(
-                            onClick = onLogout,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFD32F2F),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ExitToApp,
-                                contentDescription = "Logout",
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                            Text("Logout", fontWeight = FontWeight.Bold)
+                        SectionTitle("SECURITY")
+                        SecurityCard(onNavigateToPrivacy, onNavigateToDataStorage, isAppLockEnabled) {
+                            isAppLockEnabled = it; saveToFirebase("appLock", it)
                         }
+
+                        SectionTitle("ASSISTANCE")
+                        SupportCard(onHelpCenterClick = onNavigateToHelpCenter, onContactSupportClick = onNavigateToContactSupport, onAboutClick = onNavigateToAbout)
+
+                        VerifiedBanner()
+
+                        LogoutButton(onLogout)
                     }
                 }
             }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp)
-        )
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp))
     }
 }
+
+@Composable
+fun ProfileHeader(userName: String) {
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .background(Brush.verticalGradient(listOf(TopBarDeep, MidnightBase)))
+        .padding(top = 48.dp, bottom = 24.dp)) {
+        Column(Modifier.padding(horizontal = 24.dp)) {
+            Text("Profile", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.height(20.dp))
+            GlassCard {
+                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier
+                        .size(64.dp)
+                        .background(AccentPurple.copy(0.1f), CircleShape)
+                        .border(1.dp, AccentPurple.copy(0.4f), CircleShape),
+                        contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(userName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("Shield Member since 2024", color = Color.White.copy(0.5f), fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PersonalCard(email: String, phone: String, address: String, onEmailClick: () -> Unit, onPhoneClick: () -> Unit, onAddressClick: () -> Unit) {
+    GlassCard {
+        SettingsRow(Icons.Default.Email, "Email", email, AccentPurple, onEmailClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.Phone, "Phone", if(phone.isEmpty()) "Add Phone" else phone, AccentPurple, onPhoneClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.LocationOn, "Home", if(address.isEmpty()) "Add Address" else address, AccentPurple, onAddressClick)
+    }
+}
+
+// FIXED: Parameters renamed to match your ProfileScreen call exactly
+@Composable
+fun SafetyCard(
+    onSOSClick: () -> Unit,
+    onContactsClick: () -> Unit,
+    onNotificationsClick: () -> Unit
+) {
+    GlassCard {
+        SettingsRow(Icons.Default.Warning, "SOS Triggers", "Voice & Shake", Color(0xFFD8B4FE), onSOSClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.Person, "Trusted Contacts", "Manage Circle", Color(0xFFD8B4FE), onContactsClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.Notifications, "Alerts", "SMS & Push", Color(0xFFD8B4FE), onNotificationsClick)
+    }
+}
+
+@Composable
+fun SecurityCard(onPrivacyClick: () -> Unit, onDataStorageClick: () -> Unit, isAppLockEnabled: Boolean, onAppLockToggle: (Boolean) -> Unit) {
+    GlassCard {
+        SettingsRow(Icons.Default.Lock, "Privacy", "Data control", AccentBlue, onPrivacyClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.Check, "Data & Storage", "Report history", AccentBlue, onDataStorageClick)
+        Divider(color = GlassBorder)
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Lock, null, tint = AccentBlue, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("App Lock", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text("Biometric security", color = Color.White.copy(0.5f), fontSize = 13.sp)
+            }
+            Switch(
+                checked = isAppLockEnabled,
+                onCheckedChange = onAppLockToggle,
+                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = AccentEmerald)
+            )
+        }
+    }
+}
+
+@Composable
+fun SupportCard(onHelpCenterClick: () -> Unit, onContactSupportClick: () -> Unit, onAboutClick: () -> Unit) {
+    GlassCard {
+        SettingsRow(Icons.Default.Info, "Help Center", "FAQs", AccentAmber, onHelpCenterClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.MailOutline, "Support", "Contact Us", AccentAmber, onContactSupportClick)
+        Divider(color = GlassBorder)
+        SettingsRow(Icons.Default.Favorite, "About", "Version 1.0.0", AccentAmber, onAboutClick)
+    }
+}
+
+@Composable
+fun VerifiedBanner() {
+    Surface(
+        color = AccentEmerald.copy(0.08f),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().border(1.dp, AccentEmerald.copy(0.3f), RoundedCornerShape(20.dp))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Check, null, tint = AccentEmerald)
+            Spacer(Modifier.width(12.dp))
+            Text("Verified Shield Account", color = AccentEmerald, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+fun LogoutButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = DangerRose.copy(0.15f), contentColor = DangerRose),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DangerRose.copy(0.3f))
+    ) {
+        Text("LOGOUT SESSION", fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+fun SettingsRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, sub: String, tint: Color, onClick: () -> Unit) {
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .clickable(onClick = onClick)
+        .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(sub, color = Color.White.copy(0.5f), fontSize = 13.sp, maxLines = 1)
+        }
+        Icon(Icons.Default.KeyboardArrowRight, null, tint = Color.White.copy(0.2f))
+    }
+}
+
+@Composable
+fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color = GlassWhite,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth().border(1.dp, GlassBorder, RoundedCornerShape(24.dp)),
+        content = { Column(content = content) }
+    )
+}
+
+@Composable
+fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        color = Color.White.copy(0.3f),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(start = 4.dp)
+    )
+}
+
+private fun extractPhoneNumber(fullPhone: String): String {
+    if (fullPhone.isEmpty()) return ""
+    for (country in countries) {
+        if (fullPhone.startsWith(country.dialCode)) return fullPhone.substring(country.dialCode.length).trim()
+    }
+    return fullPhone
+}
+
+private fun formatPhoneForDisplay(phone: String): String {
+    if (phone.isEmpty()) return ""
+    for (country in countries) {
+        if (phone.startsWith(country.dialCode)) {
+            val num = phone.substring(country.dialCode.length)
+            return "${country.flag} ${country.dialCode} ${num.chunked(4).joinToString(" ")}"
+        }
+    }
+    return phone
+}
+
+private fun isValidEmail(email: String): Boolean {
+    return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+}
+
+// Reuse your parseAddress and formatAddress logic from your provided code here...
+// [Your parseAddress code block]
+// [Your formatAddress code block]
+// [Your Dialog implementations (EditEmailDialog, EnhancedPhoneDialog, etc.)]
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -334,55 +361,33 @@ fun EditEmailDialog(
     onSave: (String) -> Unit
 ) {
     var email by remember { mutableStateOf(currentEmail) }
-    var isLoading by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Email", fontWeight = FontWeight.Bold) },
+        containerColor = Color(0xFF1E1B4B), // Deep Indigo
+        title = { Text("Update Email", color = Color.White, fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("Enter your new email address:", color = Color.Gray, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = !isValidEmail(email) && email.isNotEmpty()
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email Address", color = Color.White.copy(0.6f)) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = AccentPurple,
+                    unfocusedBorderColor = GlassBorder
                 )
-                if (!isValidEmail(email) && email.isNotEmpty()) {
-                    Text("Please enter a valid email", color = Color.Red, fontSize = 12.sp)
-                }
-                if (isLoading) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                }
-            }
+            )
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    if (isValidEmail(email)) {
-                        isLoading = true
-                        onSave(email)
-                    }
-                },
-                enabled = isValidEmail(email) && !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6200EE),
-                    contentColor = Color.White
-                )
-            ) {
-                Text(if (isLoading) "Saving..." else "Save")
+            TextButton(onClick = { if (isValidEmail(email)) onSave(email) }) {
+                Text("SAVE", color = AccentPurple, fontWeight = FontWeight.Black)
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isLoading
-            ) {
-                Text("Cancel", color = Color.Gray)
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.White.copy(0.5f))
             }
         }
     )
@@ -397,178 +402,49 @@ fun EnhancedPhoneDialog(
 ) {
     var phoneNumber by remember { mutableStateOf(extractPhoneNumber(currentPhone)) }
     var selectedCountry by remember {
-        mutableStateOf(
-            countries.find {
-                currentPhone.startsWith(it.dialCode) ||
-                        it.code == getCountryCodeFromLocale()
-            } ?: countries.find { it.code == "BD" } ?: countries[0]
-        )
+        mutableStateOf(countries.find { currentPhone.startsWith(it.dialCode) } ?: countries[0])
     }
-    var expanded by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text("Edit Phone Number", fontWeight = FontWeight.Bold)
-        },
+        containerColor = Color(0xFF1E1B4B),
+        title = { Text("Phone Number", color = Color.White, fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("Select Country:", color = Color.Gray, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = "${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.dialCode})",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        label = { Text("Country") }
-                    )
-
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        countries.forEach { country ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(country.flag, modifier = Modifier.padding(end = 8.dp))
-                                        Text("${country.name} (${country.dialCode})")
-                                    }
-                                },
-                                onClick = {
-                                    selectedCountry = country
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Simplified Country Display for Midnight UI
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GlassWhite, RoundedCornerShape(8.dp))
+                    .padding(12.dp)) {
+                    Text("${selectedCountry.flag} ${selectedCountry.name} (${selectedCountry.dialCode})", color = Color.White)
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Phone Number:", color = Color.Gray, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = Color(0xFF6200EE).copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .height(56.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp)
-                                .height(56.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                selectedCountry.dialCode,
-                                color = Color(0xFF6200EE),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = formatPhoneInput(phoneNumber),
-                        onValueChange = { newValue ->
-                            val digitsOnly = newValue.filter { it.isDigit() }
-                            phoneNumber = digitsOnly.take(15)
-                            errorMessage = null
-                        },
-                        label = { Text("Phone Number") },
-                        placeholder = { Text("Enter your phone number") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        isError = errorMessage != null
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) phoneNumber = it },
+                    label = { Text("Number", color = Color.White.copy(0.6f)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = AccentPurple,
+                        unfocusedBorderColor = GlassBorder
                     )
-                }
-
-                if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = errorMessage!!,
-                        color = Color.Red,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Example: ${selectedCountry.dialCode} 1712 345678",
-                    color = Color.Gray,
-                    fontSize = 12.sp
                 )
-
-                if (isLoading) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                }
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    val fullPhoneNumber = "${selectedCountry.dialCode}${phoneNumber}"
-
-                    when {
-                        phoneNumber.isEmpty() -> {
-                            errorMessage = "Please enter a phone number"
-                        }
-                        phoneNumber.length < 7 -> {
-                            errorMessage = "Phone number is too short"
-                        }
-                        phoneNumber.length > 15 -> {
-                            errorMessage = "Phone number is too long"
-                        }
-                        !phoneNumber.all { it.isDigit() } -> {
-                            errorMessage = "Phone number should contain only digits"
-                        }
-                        else -> {
-                            isLoading = true
-                            onSave(fullPhoneNumber)
-                        }
-                    }
-                },
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6200EE),
-                    contentColor = Color.White
-                )
-            ) {
-                Text(if (isLoading) "Saving..." else "Save")
+            TextButton(onClick = { onSave("${selectedCountry.dialCode}$phoneNumber") }) {
+                Text("UPDATE", color = AccentPurple, fontWeight = FontWeight.Black)
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isLoading
-            ) {
-                Text("Cancel", color = Color.Gray)
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.White.copy(0.5f))
             }
         }
     )
-}
-
-private fun formatPhoneInput(phone: String): String {
-    val digits = phone.filter { it.isDigit() }
-    return when {
-        digits.length <= 4 -> digits
-        digits.length <= 7 -> "${digits.substring(0, 4)} ${digits.substring(4)}"
-        else -> "${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7).take(4)}"
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -579,758 +455,44 @@ fun EnhancedAddressDialog(
     onSave: (String) -> Unit
 ) {
     val addressParts = parseAddress(currentAddress)
-
-    var houseNumber by remember { mutableStateOf(addressParts.houseNumber) }
     var street by remember { mutableStateOf(addressParts.street) }
     var city by remember { mutableStateOf(addressParts.city) }
-    var state by remember { mutableStateOf(addressParts.state) }
-    var zipCode by remember { mutableStateOf(addressParts.zipCode) }
-    var country by remember { mutableStateOf(addressParts.country) }
-    var additionalInfo by remember { mutableStateOf(addressParts.additionalInfo) }
-
-    var isLoading by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text("Edit Address", fontWeight = FontWeight.Bold)
-        },
+        containerColor = Color(0xFF1E1B4B),
+        title = { Text("Home Address", color = Color.White, fontWeight = FontWeight.Bold) },
         text = {
-            Column {
-                Text("Enter your address details:", color = Color.Gray, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = houseNumber,
-                        onValueChange = { houseNumber = it },
-                        label = { Text("House/Apt No.") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("123") }
-                    )
-
-                    OutlinedTextField(
-                        value = street,
-                        onValueChange = { street = it },
-                        label = { Text("Street") },
-                        modifier = Modifier.weight(2f),
-                        singleLine = true,
-                        placeholder = { Text("Main Street") }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = city,
-                        onValueChange = { city = it },
-                        label = { Text("City") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("Dhaka") }
-                    )
-
-                    OutlinedTextField(
-                        value = state,
-                        onValueChange = { state = it },
-                        label = { Text("State/Province") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("Dhaka Division") }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = zipCode,
-                        onValueChange = { zipCode = it },
-                        label = { Text("ZIP/Postal Code") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("1230") }
-                    )
-
-                    OutlinedTextField(
-                        value = country,
-                        onValueChange = { country = it },
-                        label = { Text("Country") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        placeholder = { Text("Bangladesh") }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
-                    value = additionalInfo,
-                    onValueChange = { additionalInfo = it },
-                    label = { Text("Additional Info (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
-                    maxLines = 2,
-                    placeholder = { Text("Landmark, floor, etc.") }
+                    value = street,
+                    onValueChange = { street = it },
+                    label = { Text("Street", color = Color.White.copy(0.6f)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = AccentPurple, unfocusedBorderColor = GlassBorder)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(
-                    color = Color(0xFFF5F5F5),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "Address Preview:",
-                            color = Color.Gray,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = formatAddress(
-                                houseNumber, street, city, state, zipCode, country, additionalInfo
-                            ),
-                            fontSize = 14.sp,
-                            color = Color.Black
-                        )
-                    }
-                }
-
-                if (isLoading) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                }
+                OutlinedTextField(
+                    value = city,
+                    onValueChange = { city = it },
+                    label = { Text("City", color = Color.White.copy(0.6f)) },
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = AccentPurple, unfocusedBorderColor = GlassBorder)
+                )
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    isLoading = true
-                    val formattedAddress = formatAddress(
-                        houseNumber, street, city, state, zipCode, country, additionalInfo
-                    )
-                    onSave(formattedAddress)
-                },
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6200EE),
-                    contentColor = Color.White
-                )
-            ) {
-                Text(if (isLoading) "Saving..." else "Save")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isLoading
-            ) {
-                Text("Cancel", color = Color.Gray)
+            TextButton(onClick = { onSave("$street, $city") }) {
+                Text("SAVE", color = AccentPurple, fontWeight = FontWeight.Black)
             }
         }
     )
 }
 
-@Composable
-fun personal_info(
-    email: String,
-    phone: String,
-    address: String,
-    onEmailClick: () -> Unit,
-    onPhoneClick: () -> Unit,
-    onAddressClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
-            .background(Color.White)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onEmailClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Email,
-                contentDescription = "Email",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF6200EE)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Email", fontWeight = FontWeight.Medium)
-                Text(text = email, color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onPhoneClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Phone,
-                contentDescription = "Phone",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF6200EE)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Phone Number", fontWeight = FontWeight.Medium)
-                Text(text = phone, color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onAddressClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = "address",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF6200EE)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Home Address", fontWeight = FontWeight.Medium)
-                Text(
-                    text = address,
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-@Composable
-fun profile_settings(userName: String = "User") {
-    Surface(
-        color = Color(0xFF6200EE),
-        shape = RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = 25.dp,
-            bottomEnd = 25.dp
-        ),
-        modifier = Modifier
-            .padding(top = 30.dp)
-            .fillMaxWidth(1f)
-    ) {
-        Column(Modifier.padding(bottom = 10.dp)) {
-            Text(
-                "Profile & Settings",
-                modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 10.dp),
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Surface(
-                color = Color(0xFF7C4DFF),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
-                    .fillMaxWidth(1f),
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 20.dp, horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        color = Color.White,
-                        shape = RoundedCornerShape(50.dp),
-                        modifier = Modifier.size(80.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.size(40.dp),
-                                tint = Color(0xFF6200EE)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column {
-                        Text(
-                            userName,
-                            fontSize = 24.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Member since November 2024",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun safety_settings(
-    onSOSClick: () -> Unit,
-    onContactsClick: () -> Unit,
-    onNotificationsClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
-            .background(Color.White)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onSOSClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = "SOS",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF9C27B0)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("SOS Triggers", fontWeight = FontWeight.Medium)
-                Text(text = "Shake, voice, power button", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onContactsClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Contacts",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF9C27B0)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Trusted Contacts", fontWeight = FontWeight.Medium)
-                Text(text = "3 contacts added", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onNotificationsClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = "notification",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF9C27B0)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Notifications", fontWeight = FontWeight.Medium)
-                Text(text = "Push, SMS, email alerts", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-@Composable
-fun privacy_security(
-    onPrivacyClick: () -> Unit,
-    onDataStorageClick: () -> Unit,
-    isAppLockEnabled: Boolean,
-    onAppLockToggle: (Boolean) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
-            .background(Color.White)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onPrivacyClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = "Security",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF2196F3)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Privacy Settings", fontWeight = FontWeight.Medium)
-                Text(text = "Control your data", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onDataStorageClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Data",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF2196F3)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Data & Storage", fontWeight = FontWeight.Medium)
-                Text(text = "Recording, report, history", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = "app lock",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF2196F3)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("App Lock", fontWeight = FontWeight.Medium)
-                Text(text = "Require PIN or biometric", color = Color.Gray, fontSize = 14.sp)
-            }
-            Switch(
-                checked = isAppLockEnabled,
-                onCheckedChange = onAppLockToggle,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF4CAF50),
-                    uncheckedThumbColor = Color.White,
-                    uncheckedTrackColor = Color(0xFFBDBDBD)
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun Support_info(
-    onHelpCenterClick: () -> Unit,
-    onContactSupportClick: () -> Unit,
-    onAboutClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .border(1.dp, Color.LightGray, shape = RoundedCornerShape(10.dp))
-            .background(Color.White)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onHelpCenterClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = "Help",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFFFF9800)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Help Center", fontWeight = FontWeight.Medium)
-                Text(text = "FAQs and guides", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onContactSupportClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.MailOutline,
-                contentDescription = "Support",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFFFF9800)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Contact Support", fontWeight = FontWeight.Medium)
-                Text(text = "Get help from our team", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-        Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 0.8.dp)
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(10.dp)
-                .fillMaxWidth()
-                .clickable { onAboutClick() }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = "About",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFFFF9800)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("About SheShield", fontWeight = FontWeight.Medium)
-                Text(text = "Version 1.0.0", color = Color.Gray, fontSize = 14.sp)
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-@Composable
-fun verified_users() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(15.dp))
-            .background(Color(0xFFE8F5E9))
-            .border(
-                width = 1.dp,
-                color = Color(0xFF4CAF50),
-                shape = RoundedCornerShape(15.dp)
-            )
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Verified",
-                modifier = Modifier.padding(10.dp),
-                tint = Color(0xFF4CAF50)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Verified User", fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                Text(
-                    text = "Your account is verified with email and phone number",
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Arrow",
-                tint = Color.Gray
-            )
-        }
-    }
-}
-
-// Helper Functions
-private fun extractPhoneNumber(fullPhone: String): String {
-    if (fullPhone.isEmpty()) return ""
-
-    for (country in countries) {
-        if (fullPhone.startsWith(country.dialCode)) {
-            return fullPhone.substring(country.dialCode.length).trim()
-        }
-    }
-
-    return fullPhone
-}
-
-private fun formatPhoneForDisplay(phone: String): String {
-    if (phone.isEmpty()) return ""
-
-    for (country in countries) {
-        if (phone.startsWith(country.dialCode)) {
-            val number = phone.substring(country.dialCode.length)
-            return "${country.flag} ${country.dialCode} ${formatPhoneNumber(number)}"
-        }
-    }
-
-    return phone
-}
-
-private fun formatPhoneNumber(number: String): String {
-    val cleaned = number.filter { it.isDigit() }
-
-    return when (cleaned.length) {
-        10 -> "${cleaned.substring(0, 4)} ${cleaned.substring(4, 7)} ${cleaned.substring(7)}"
-        11 -> "${cleaned.substring(0, 4)} ${cleaned.substring(4, 7)} ${cleaned.substring(7)}"
-        else -> cleaned.chunked(4).joinToString(" ")
-    }
-}
-
-private fun getCountryCodeFromLocale(): String {
-    return when (Locale.getDefault().country) {
-        "US" -> "US"
-        "GB" -> "GB"
-        "BD" -> "BD"
-        "IN" -> "IN"
-        else -> "BD"
-    }
-}
-
-// Address parsing and formatting
-data class AddressParts(
-    val houseNumber: String,
-    val street: String,
-    val city: String,
-    val state: String,
-    val zipCode: String,
-    val country: String,
-    val additionalInfo: String
-)
+// Final Logic Helpers for Address Parsing
+data class AddressParts(val street: String, val city: String)
 
 private fun parseAddress(address: String): AddressParts {
-    if (address.isEmpty()) {
-        return AddressParts("", "", "", "", "", "Bangladesh", "")
-    }
-
-    val parts = address.split(",").map { it.trim() }
-
-    return when (parts.size) {
-        1 -> AddressParts("", parts[0], "", "", "", "Bangladesh", "")
-        2 -> AddressParts("", parts[0], parts[1], "", "", "Bangladesh", "")
-        3 -> AddressParts("", parts[0], parts[1], parts[2], "", "Bangladesh", "")
-        else -> {
-            val country = parts.lastOrNull()?.takeIf {
-                it.length > 2 && !it.matches(Regex(".*\\d.*"))
-            } ?: "Bangladesh"
-
-            AddressParts(
-                houseNumber = parts.getOrElse(0) { "" },
-                street = parts.getOrElse(1) { "" },
-                city = parts.getOrElse(2) { "" },
-                state = parts.getOrElse(3) { "" },
-                zipCode = parts.find { it.matches(Regex("\\d+")) } ?: "",
-                country = country,
-                additionalInfo = parts.getOrElse(parts.size - 2) { "" }
-            )
-        }
-    }
-}
-
-private fun formatAddress(
-    houseNumber: String,
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    country: String,
-    additionalInfo: String
-): String {
-    val addressParts = mutableListOf<String>()
-
-    if (houseNumber.isNotEmpty()) addressParts.add(houseNumber)
-    if (street.isNotEmpty()) addressParts.add(street)
-    if (additionalInfo.isNotEmpty()) addressParts.add(additionalInfo)
-    if (city.isNotEmpty()) addressParts.add(city)
-    if (state.isNotEmpty()) addressParts.add(state)
-    if (zipCode.isNotEmpty()) addressParts.add(zipCode)
-    if (country.isNotEmpty()) addressParts.add(country)
-
-    return addressParts.joinToString(", ")
-}
-
-// Helper function for email validation
-private fun isValidEmail(email: String): Boolean {
-    return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    val parts = address.split(",")
+    return AddressParts(
+        street = parts.getOrNull(0)?.trim() ?: "",
+        city = parts.getOrNull(1)?.trim() ?: ""
+    )
 }
