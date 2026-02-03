@@ -2,8 +2,10 @@ package com.example.sheshield.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -13,6 +15,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -61,8 +64,8 @@ data class RouteOption(
     val description: String,
     val riskScore: Int,
     val destination: LatLng,
-    val waypoint: LatLng? = null,
-    val type: RouteType
+    val type: RouteType,
+    val reason: String // New field to explain the "Why"
 )
 
 enum class RouteType { FASTEST, SAFER_DETOUR, ALTERNATIVE_SHELTER }
@@ -73,9 +76,7 @@ enum class IncidentType(val baseSeverity: Int, val label: String, val color: Col
     HARASSMENT(7, "Harassment", Color.Red),
     THEFT(6, "Theft", Color(0xFFFF5722)),
     POOR_LIGHTING(4, "Poor Lighting", Color(0xFFFFC107)),
-    
-    // UPDATED: Bright Neon Green
-    SAFE_SHELTER(0, "Safe Zone", Color(0xFF00FF77)) 
+    SAFE_SHELTER(0, "Safe Zone", Color(0xFF00FF77)) // Bright Neon Green
 }
 
 @Composable
@@ -86,8 +87,7 @@ fun GeneralMapScreen() {
     // UI States
     var showRouteSelectionDialog by remember { mutableStateOf(false) }
     var availableRoutes by remember { mutableStateOf<List<RouteOption>>(emptyList()) }
-    var selectedRoutePolyline by remember { mutableStateOf<List<LatLng>?>(null) }
-    
+
     // --- HOVER STATE ---
     var hoveredZone by remember { mutableStateOf<SafetyIncident?>(null) }
 
@@ -100,7 +100,6 @@ fun GeneralMapScreen() {
     }
 
     // --- MAP STATE ---
-    var currentRiskLevel by remember { mutableStateOf(RiskLevel.SAFE) }
     var safetyScore by remember { mutableStateOf(100) }
 
     // Camera centered near Gazipur/Boardbazar
@@ -128,9 +127,9 @@ fun GeneralMapScreen() {
 
     // --- RISK & HOVER MONITORING ---
     LaunchedEffect(cameraPositionState.position, incidentList.size) {
-        val target = cameraPositionState.position.target // Center of screen
-        
-        // 1. Calculate Risk Score based on nearby items
+        val target = cameraPositionState.position.target
+
+        // 1. Calculate Risk Score
         val nearbyIncidents = incidentList.filter {
             calculateDistance(target, it.location) <= 600.0 && it.type != IncidentType.SAFE_SHELTER
         }
@@ -145,9 +144,9 @@ fun GeneralMapScreen() {
         }
 
         if (zoneUnderCamera != null && zoneUnderCamera != hoveredZone) {
-             triggerVibration(context)
+            triggerVibration(context)
         }
-        
+
         hoveredZone = zoneUnderCamera
     }
 
@@ -170,15 +169,11 @@ fun GeneralMapScreen() {
             uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = true),
             properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
         ) {
-            selectedRoutePolyline?.let { path ->
-                Polyline(points = path, color = Color.Green, width = 15f, pattern = null)
-            }
-
             incidentList.forEach { incident ->
                 val isSafe = incident.type == IncidentType.SAFE_SHELTER
                 val isHovered = hoveredZone == incident
 
-                // Radius logic (Large circles)
+                // Radius logic
                 val areaRadius = if (isSafe) 500.0 else (incident.severityScore * 65.0).coerceAtLeast(500.0)
 
                 // 1. AREA CIRCLE
@@ -210,7 +205,7 @@ fun GeneralMapScreen() {
                 )
             }
         }
-        
+
         // --- CENTER CROSSHAIR ---
         Icon(
             imageVector = Icons.Default.Add,
@@ -219,7 +214,7 @@ fun GeneralMapScreen() {
             modifier = Modifier.align(Alignment.Center).size(24.dp)
         )
 
-        // --- FLOATING INFO WINDOW (HOVER CARD) ---
+        // --- FLOATING INFO WINDOW ---
         AnimatedVisibility(
             visible = hoveredZone != null,
             enter = slideInVertically { it } + fadeIn(),
@@ -228,9 +223,7 @@ fun GeneralMapScreen() {
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 100.dp, start = 16.dp, end = 16.dp)
         ) {
-            hoveredZone?.let { zone ->
-                FloatingZoneInfoCard(zone)
-            }
+            hoveredZone?.let { zone -> FloatingZoneInfoCard(zone) }
         }
 
         // TOP CENTER: SAFETY SCORE
@@ -247,12 +240,11 @@ fun GeneralMapScreen() {
             )
         }
 
-        // RIGHT SIDE: ACTION BUTTONS (Updated - Red Button Removed)
+        // RIGHT SIDE: ACTION BUTTONS
         Column(
             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 👇 Only the Green Safe Zone Button remains
             FloatingActionButton(
                 onClick = {
                     val userLoc = cameraPositionState.position.target
@@ -265,43 +257,61 @@ fun GeneralMapScreen() {
 
                     // --- ROUTING LOGIC ---
                     val routes = mutableListOf<RouteOption>()
+                    // Sort by distance to find closest ones
                     val nearbySafeZones = safeZones.sortedBy { calculateDistance(userLoc, it.location) }.take(3)
 
                     nearbySafeZones.forEachIndexed { index, zone ->
                         val risk = calculateRouteRisk(userLoc, zone.location, incidentList)
-                        val routeType = when(index) {
-                            0 -> RouteType.FASTEST
-                            1 -> RouteType.SAFER_DETOUR
-                            else -> RouteType.ALTERNATIVE_SHELTER
+                        val dist = calculateDistance(userLoc, zone.location).toInt()
+
+                        // Determine Route Type and Reason logic
+                        val (type, reason) = when {
+                            risk == 0 -> Pair(RouteType.SAFER_DETOUR, "Avoids all reported danger zones")
+                            risk < 5 -> Pair(RouteType.FASTEST, "Fastest path, but passes near low risk area")
+                            else -> Pair(RouteType.ALTERNATIVE_SHELTER, "Crosses known high-risk areas")
                         }
 
                         routes.add(RouteOption(
                             id = "route_$index",
-                            title = if(index == 0) "Nearest Safe Zone" else "Alternative Option ${index}",
-                            description = "${zone.description} (${calculateDistance(userLoc, zone.location).toInt()}m away)",
+                            title = if(risk == 0) "Safest Route" else "Fastest Route",
+                            description = "${zone.description} ($dist m)",
                             riskScore = risk,
                             destination = zone.location,
-                            type = routeType
+                            type = type,
+                            reason = reason
                         ))
                     }
 
-                    availableRoutes = routes
+                    // Ensure at least one safe option is highlighted if available, otherwise just show sorted
+                    availableRoutes = routes.sortedBy { it.riskScore }
                     showRouteSelectionDialog = true
                 },
                 containerColor = Color(0xFF4CAF50), contentColor = Color.White
             ) { Icon(Icons.Default.ExitToApp, "Safe Zone") }
         }
 
+        // --- DIALOG FOR GOOGLE MAPS LAUNCH ---
         if (showRouteSelectionDialog) {
             RouteSelectionDialog(
                 routes = availableRoutes,
                 onDismiss = { showRouteSelectionDialog = false },
                 onSelect = { route ->
                     showRouteSelectionDialog = false
-                    val path = mutableListOf(cameraPositionState.position.target)
-                    if (route.waypoint != null) path.add(route.waypoint)
-                    path.add(route.destination)
-                    selectedRoutePolyline = path
+                    try {
+                        val gmmIntentUri = Uri.parse("google.navigation:q=${route.destination.latitude},${route.destination.longitude}&mode=w")
+                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                        mapIntent.setPackage("com.google.android.apps.maps")
+
+                        if (mapIntent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(mapIntent)
+                        } else {
+                            val browserUri = Uri.parse("http://googleusercontent.com/maps.google.com/maps?daddr=${route.destination.latitude},${route.destination.longitude}&travelmode=walking")
+                            val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
+                            context.startActivity(browserIntent)
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Could not open Maps", Toast.LENGTH_SHORT).show()
+                    }
                 }
             )
         }
@@ -309,6 +319,107 @@ fun GeneralMapScreen() {
 }
 
 // --- COMPOSABLES & HELPERS ---
+
+@Composable
+fun RouteSelectionDialog(routes: List<RouteOption>, onDismiss: () -> Unit, onSelect: (RouteOption) -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Select Safe Path",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Routes analyzed using live crowd-sourced safety data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(routes) { route -> RouteOptionCard(route, onSelect) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RouteOptionCard(route: RouteOption, onClick: (RouteOption) -> Unit) {
+    val isSafe = route.riskScore == 0
+    // Distinct Styling for Safe vs Risky
+    val bgColor = if (isSafe) Color(0xFFE0F2F1) else Color(0xFFFFEBEE) // Light Teal vs Light Red
+    val strokeColor = if (isSafe) Color(0xFF00695C) else Color(0xFFC62828) // Dark Teal vs Dark Red
+    val iconVec = if (isSafe) Icons.Default.VerifiedUser else Icons.Default.Warning
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick(route) },
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, strokeColor.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = bgColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: Icon
+            Icon(
+                imageVector = iconVec,
+                contentDescription = null,
+                tint = strokeColor,
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Center: Info
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = route.title.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = strokeColor
+                    )
+                    if (isSafe) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("RECOMMENDED", fontSize = 10.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Black)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = route.description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    text = route.reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.DarkGray
+                )
+            }
+
+            // Right: Arrow
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Go",
+                tint = Color.Gray
+            )
+        }
+    }
+}
+
 @Composable
 fun FloatingZoneInfoCard(zone: SafetyIncident) {
     Card(
@@ -380,40 +491,6 @@ fun loadLocalIncidents(context: Context): List<SafetyIncident> {
         }
     } catch (e: Exception) { e.printStackTrace() }
     return incidents
-}
-
-@Composable
-fun RouteSelectionDialog(routes: List<RouteOption>, onDismiss: () -> Unit, onSelect: (RouteOption) -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Select Safe Path", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(routes) { route -> RouteOptionCard(route, onSelect) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RouteOptionCard(route: RouteOption, onClick: (RouteOption) -> Unit) {
-    val isSafe = route.riskScore == 0
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick(route) },
-        colors = CardDefaults.cardColors(containerColor = if(isSafe) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(route.title, fontWeight = FontWeight.Bold)
-            Text(route.description, fontSize = 12.sp)
-            if(!isSafe) Text("⚠️ Caution: Crosses High Risk Area", fontSize = 10.sp, color = Color.Red)
-        }
-    }
 }
 
 fun calculateDistance(start: LatLng, end: LatLng): Double {
