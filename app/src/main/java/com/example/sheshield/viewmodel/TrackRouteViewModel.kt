@@ -92,6 +92,7 @@ class TrackRouteViewModel : ViewModel() {
 
                 // 2. Create the Google Maps link
                 // Note: Fixed URL format to be standard Google Maps link
+                // ✅ NEW (Standard Google Maps Universal Link)
                 val mapLink = "https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}"
                 val message = "I'm sharing my live route securely via SheShield. Track me here: $mapLink"
 
