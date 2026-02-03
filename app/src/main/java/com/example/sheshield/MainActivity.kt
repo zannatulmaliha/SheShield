@@ -37,6 +37,15 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 
+import com.example.sheshield.screens.VerificationScreen
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.firestore
+
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.auth.User
+import kotlinx.coroutines.tasks.await
+
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,29 +97,65 @@ fun SheShieldApp() {
     var userData by remember { mutableStateOf<UserData?>(null) }
     var showMovementScreen by rememberSaveable { mutableStateOf(false) }
 
+    val currentUser = Firebase.auth.currentUser
+
     LaunchedEffect(Unit) { movementViewModel.initialize(context) }
     LaunchedEffect(Unit) { sosViewModel.initLocationClient(context) }
 
-    LaunchedEffect(key1 = auth.currentUser) {
-        isLoading = true
-        delay(500)
-        val currentUser = auth.currentUser
-        isLoggedIn = currentUser != null
+//    LaunchedEffect(key1 = auth.currentUser) {
+//        isLoading = true
+//        delay(500)
+//        val currentUser = auth.currentUser
+//        isLoggedIn = currentUser != null
+//
+//        if (isLoggedIn == true && currentUser != null) {
+//            firestore.collection("users").document(currentUser.uid).get()
+//                .addOnSuccessListener { document ->
+//                    if (document.exists()) {
+//                        userData = document.toObject(UserData::class.java)?.copy(userId = currentUser.uid)
+//                        appMode = if (userData?.userType == "helper") AppMode.HELPER else AppMode.USER
+//                    }
+//                    isLoading = false
+//                }
+//                .addOnFailureListener { isLoading = false }
+//        } else {
+//            isLoading = false
+//        }
+//    }
 
-        if (isLoggedIn == true && currentUser != null) {
-            firestore.collection("users").document(currentUser.uid).get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        userData = document.toObject(UserData::class.java)?.copy(userId = currentUser.uid)
-                        appMode = if (userData?.userType == "helper") AppMode.HELPER else AppMode.USER
-                    }
-                    isLoading = false
-                }
-                .addOnFailureListener { isLoading = false }
+    LaunchedEffect(currentUser?.uid) {
+        isLoading = true
+        val currentUser = Firebase.auth.currentUser
+
+        if (currentUser != null) {
+            try {
+                val doc = Firebase.firestore.collection("users").document(currentUser.uid).get().await()
+                val fetchedUser = doc.toObject(UserData::class.java)
+                val isVerified = doc.getBoolean("isHelperVerified") ?: false
+                userData = fetchedUser?.copy(userId = currentUser.uid, isHelperVerified = isVerified)
+
+
+
+                println("🔥 userData after fix = $userData")
+
+
+
+                //✅ Set login state here
+                isLoggedIn = true
+
+
+            } catch (e: Exception) {
+                userData = null
+                isLoggedIn = false
+            }
         } else {
-            isLoading = false
+            isLoggedIn = false
+            userData = null
         }
+
+        isLoading = false
     }
+
 
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
