@@ -21,13 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import com.example.sheshield.models.Alert
 import com.example.sheshield.models.UserData
-import com.google.firebase.firestore.Query
 import com.example.sheshield.navigation.HelperScreen
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
@@ -52,85 +50,50 @@ fun HelperDashboard(
     // UI States
     var isActive by remember { mutableStateOf(false) }
     var radiusKm by remember { mutableFloatStateOf(5f) }
-
-    // Data Lists
-    val allActiveAlerts = remember { mutableStateListOf<Alert>() }
+    var isProcessing by remember { mutableStateOf(false) }
     var selectedAlert by remember { mutableStateOf<Alert?>(null) }
     var helperLocation by remember { mutableStateOf<Location?>(null) }
 
-    // Loading state
-    var isProcessing by remember { mutableStateOf(false) }
+    // Data List (Single Source of Truth)
+    val allActiveAlerts = remember { mutableStateListOf<Alert>() }
 
     val helperStats = remember {
         mapOf("responses" to "24", "success" to "91%", "avg_time" to "8m")
     }
 
-    // --- 1. SYNC STATE FROM FIRESTORE ---
+    // --- 1. SYNC INITIAL STATE ---
     LaunchedEffect(Unit) {
-        db.collection("users").document(userId)
-            .addSnapshotListener { document, e ->
-                if (e != null) return@addSnapshotListener
-                if (document != null && document.exists()) {
-                    isActive = document.getBoolean("isActive") ?: false
-                    val dbRadius = document.getDouble("responseRadius")?.toFloat()
-                    if (dbRadius != null) radiusKm = dbRadius
-
-                    val locMap = document.get("location") as? Map<String, Double>
-                    if (locMap != null) {
-                        val loc = Location("provider")
-                        loc.latitude = locMap["latitude"] ?: 0.0
-                        loc.longitude = locMap["longitude"] ?: 0.0
-                        helperLocation = loc
-                    }
-                }
+        db.collection("users").document(userId).get().addOnSuccessListener { doc ->
+            if (doc.exists()) {
+                isActive = doc.getBoolean("isActive") ?: false
+                radiusKm = doc.getDouble("responseRadius")?.toFloat() ?: 5f
             }
+        }
     }
 
-    // --- 2. AUTO-SAVE RADIUS ---
+    // --- 2. LOCATION PERMISSION & UPDATES ---
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                    helperLocation = loc
+                }
+            }
+        }
+    }
+
+    // --- 3. AUTO-SAVE RADIUS ---
     LaunchedEffect(radiusKm) {
         delay(1000)
         db.collection("users").document(userId).update("responseRadius", radiusKm)
     }
 
-    // --- 3. TOGGLE ACTIVE STATUS ---
-    fun toggleActiveStatus() {
-        if (!isActive) {
-            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-
-                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
-                    if (loc != null) {
-                        helperLocation = loc
-                        val helperUpdate = mapOf(
-                            "isActive" to true,
-                            "responseRadius" to radiusKm,
-                            "lastActiveTimestamp" to System.currentTimeMillis(),
-                            "location" to mapOf("latitude" to loc.latitude, "longitude" to loc.longitude)
-                        )
-                        db.collection("users").document(userId).update(helperUpdate)
-                        Toast.makeText(context, "You are now ACTIVE", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Turn on GPS", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } else {
-                Toast.makeText(context, "Location permission required", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            db.collection("users").document(userId).update("isActive", false)
-            allActiveAlerts.clear()
-            Toast.makeText(context, "You are now OFFLINE", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     // --- 4. REAL-TIME ALERT LISTENER ---
     LaunchedEffect(isActive) {
         if (isActive) {
-            // Filter: Hide alerts older than 24 hours to remove dummy data
             val oneDayAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
-
-            db.collection("alerts")
+            val listener = db.collection("alerts")
                 .whereEqualTo("status", "active")
                 .addSnapshotListener { snapshots, e ->
                     if (e != null) return@addSnapshotListener
@@ -139,149 +102,73 @@ fun HelperDashboard(
                         for (doc in snapshots) {
                             try {
                                 val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
-
-                                // Logic to show all valid alerts within timeframe (including self for testing)
-                                if (alert.timestamp > oneDayAgo &&
-                                    (alert.location.latitude != 0.0 || alert.location.longitude != 0.0)) {
-
-                                    // Fallback for missing names
-                                    if (alert.userName.isBlank()) {
-                                        val fixedAlert = alert.copy(userName = "SheShield User")
-                                        allActiveAlerts.add(fixedAlert)
-                                    } else {
-                                        allActiveAlerts.add(alert)
-                                    }
+                                if (alert.timestamp > oneDayAgo && alert.userId != userId) {
+                                    allActiveAlerts.add(alert)
                                 }
-                            } catch (e: Exception) { Log.e("HelperDashboard", "Error", e) }
+                            } catch (e: Exception) { Log.e("Dashboard", "Error parsing", e) }
                         }
-                        // Sort by newest first
                         allActiveAlerts.sortByDescending { it.timestamp }
                     }
                 }
+            // Clean up listener when effect leaves or isActive changes
+        } else {
+            allActiveAlerts.clear()
         }
     }
 
-    // --- 5. ACCEPT ALERT ---
+    // --- 5. DERIVED FILTERED LISTS (FIXES THE "CLEAR" ERROR) ---
+    // These update automatically when any dependent state changes.
+    val nearbyAlerts by remember(allActiveAlerts, helperLocation, radiusKm) {
+        derivedStateOf {
+            if (helperLocation == null) emptyList<Alert>()
+            else allActiveAlerts.filter {
+                val alertLoc = Location("").apply {
+                    latitude = it.location.latitude; longitude = it.location.longitude
+                }
+                (helperLocation!!.distanceTo(alertLoc) / 1000) <= radiusKm
+            }
+        }
+    }
+
+    val outsideAlerts by remember(allActiveAlerts, helperLocation, radiusKm) {
+        derivedStateOf {
+            if (helperLocation == null) emptyList<Alert>()
+            else allActiveAlerts.filter {
+                val alertLoc = Location("").apply {
+                    latitude = it.location.latitude; longitude = it.location.longitude
+                }
+                (helperLocation!!.distanceTo(alertLoc) / 1000) > radiusKm
+            }
+        }
+    }
+
+    // --- 6. ACTIONS ---
+    fun toggleActiveStatus() {
+        val newState = !isActive
+        db.collection("users").document(userId).update("isActive", newState)
+        isActive = newState
+        val msg = if (newState) "You are now ACTIVE" else "You are now OFFLINE"
+        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    }
+
     fun acceptAlert(alert: Alert) {
         isProcessing = true
-
-        // Mark as accepted -> Removes from everyone else's dashboard
         val updates = mapOf(
             "status" to "accepted",
             "responderId" to userId,
             "responderName" to (userData?.name ?: "Helper"),
             "acceptedAt" to System.currentTimeMillis()
         )
-
-        db.collection("alerts").document(alert.id)
-            .update(updates)
+        db.collection("alerts").document(alert.id).update(updates)
             .addOnSuccessListener {
                 isProcessing = false
                 selectedAlert = null
-
-                // Navigate
-                com.example.sheshield.screens.helper.HelperTrackingLogic.startNavigationToUser(context, alert)
                 onAcceptAlert(alert)
-                Toast.makeText(context, "Alert Accepted! Navigating...", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 isProcessing = false
                 Toast.makeText(context, "Failed to accept.", Toast.LENGTH_SHORT).show()
             }
-    }
-
-    // --- 6. FILTER ALERTS (RADIUS) ---
-    val nearbyAlerts = remember(allActiveAlerts.size, helperLocation, radiusKm) {
-        derivedStateOf {
-            if (helperLocation == null) emptyList()
-            else allActiveAlerts.filter {
-                val loc = Location("").apply { latitude = it.location.latitude; longitude = it.location.longitude }
-                (helperLocation!!.distanceTo(loc) / 1000) <= radiusKm
-            }
-        }
-    }
-
-    val outsideAlerts = remember(allActiveAlerts.size, helperLocation, radiusKm) {
-        derivedStateOf {
-            if (helperLocation == null) emptyList()
-            else allActiveAlerts.filter {
-                val loc = Location("").apply { latitude = it.location.latitude; longitude = it.location.longitude }
-                (helperLocation!!.distanceTo(loc) / 1000) > radiusKm
-            }
-        }
-    }
-
-    // 1. Get Helper's Current Location when they go Active
-    LaunchedEffect(isActive) {
-        if (isActive) {
-            try {
-                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-                // We assume permission is granted since you handle it in MainActivity
-                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                    if (location != null) {
-                        helperLocation = location
-                        Log.d("HelperDashboard", "Helper Location found: ${location.latitude}, ${location.longitude}")
-                    } else {
-                        Log.w("HelperDashboard", "Helper Location is null")
-                    }
-                }
-            } catch (e: SecurityException) {
-                Log.e("HelperDashboard", "Location permission missing", e)
-            }
-        }
-    }
-
-    // 2. Listen to Firestore and Filter by Distance
-    LaunchedEffect(isActive, helperLocation) {
-        if (isActive && helperLocation != null) {
-            val db = FirebaseFirestore.getInstance()
-            val radiusKm = userData?.responseRadius ?: 5 // Default to 5km if null
-
-            // Listen to ALL active alerts
-            // We order by timestamp descending to see newest first
-            val registration = db.collection("alerts")
-                .whereEqualTo("status", "active")
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .addSnapshotListener { snapshots, e ->
-                    if (e != null) {
-                        Log.w("HelperDashboard", "Listen failed.", e)
-                        return@addSnapshotListener
-                    }
-
-                    if (snapshots != null) {
-                        nearbyAlerts.clear()
-                        for (doc in snapshots) {
-                            try {
-                                val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
-
-                                // --- DISTANCE FILTERING LOGIC ---
-                                // Create a Location object for the alert
-                                val alertLoc = Location("alert")
-                                alertLoc.latitude = alert.location.latitude
-                                alertLoc.longitude = alert.location.longitude
-
-                                // Calculate distance
-                                val distanceInMeters = helperLocation!!.distanceTo(alertLoc)
-                                val distanceInKm = distanceInMeters / 1000
-
-                                Log.d("HelperDashboard", "Alert ${alert.userName} is $distanceInKm km away")
-
-                                // Only add if within radius (and not your own alert)
-                                if (distanceInKm <= radiusKm && alert.userId != userData?.userId) {
-                                    nearbyAlerts.add(alert)
-                                }
-                                // -------------------------------
-
-                            } catch (err: Exception) {
-                                Log.e("HelperDashboard", "Error parsing alert", err)
-                            }
-                        }
-                    }
-                }
-        } else {
-            // If inactive, clear list
-            nearbyAlerts.clear()
-        }
     }
 
     Scaffold(
@@ -290,8 +177,8 @@ fun HelperDashboard(
                 onClick = { toggleActiveStatus() },
                 containerColor = if (isActive) Color(0xFF4CAF50) else Color(0xFFF44336)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(12.dp)) {
-                    Icon(if (isActive) Icons.Default.Check else Icons.Default.PowerSettingsNew, "Active")
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+                    Icon(if (isActive) Icons.Default.Check else Icons.Default.PowerSettingsNew, null)
                     Text(if (isActive) "ACTIVE" else "GO ACTIVE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -303,9 +190,7 @@ fun HelperDashboard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().background(Color(0xFF1976D2)).padding(24.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF1976D2)).padding(24.dp)) {
                     Text("Helper Dashboard", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
                     Text(if (isActive) "Scanning for alerts..." else "Go active to help", color = Color.White.copy(alpha = 0.9f))
                 }
@@ -320,77 +205,64 @@ fun HelperDashboard(
                         }
                     }
                 }
-            }
 
-            // Stats row
-            item {
-                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        StatItem(Icons.Default.AssignmentTurnedIn, helperStats["responses"] ?: "0", "Responses", Color(0xFF6200EE))
-                        StatItem(Icons.Default.Star, helperStats["success"] ?: "0%", "Success Rate", Color(0xFF4CAF50))
-                        StatItem(Icons.Default.Schedule, helperStats["avg_time"] ?: "0m", "Avg Time", Color(0xFF2196F3))
-                    }
-                }
-            }
-
-            // Quick Actions
-            item {
-                Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Quick Actions", fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(12.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            QuickActionButton(Icons.Default.Settings, "Settings") { onNavigate(HelperScreen.PROFILE) }
-                            QuickActionButton(Icons.Default.Help, "Support") { onNavigate(HelperScreen.SUPPORT) }
-                            QuickActionButton(Icons.Default.History, "History") { onNavigate(HelperScreen.HISTORY) }
-                            QuickActionButton(Icons.Default.School, "Training") { /* TODO */ }
+                // Stats row
+                item {
+                    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            StatItem(Icons.Default.AssignmentTurnedIn, helperStats["responses"] ?: "0", "Responses", Color(0xFF6200EE))
+                            StatItem(Icons.Default.Star, helperStats["success"] ?: "0%", "Success", Color(0xFF4CAF50))
+                            StatItem(Icons.Default.Schedule, helperStats["avg_time"] ?: "0m", "Avg Time", Color(0xFF2196F3))
                         }
                     }
                 }
-            }
 
-            if (nearbyAlerts.value.isNotEmpty()) {
-                item { Text("🚨 URGENT REQUESTS", color = Color.Red, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 16.dp)) }
-                items(nearbyAlerts.value) { alert ->
-                    // Calculate Distance
-                    val distStr = if (helperLocation != null) {
-                        val tLoc = Location("").apply { latitude = alert.location.latitude; longitude = alert.location.longitude }
-                        val d = helperLocation!!.distanceTo(tLoc) / 1000
-                        String.format("%.1f km", d)
-                    } else "?"
-
-                    NearbyAlertItem(alert, distStr) { selectedAlert = alert }
+                if (nearbyAlerts.isNotEmpty()) {
+                    item { Text("🚨 URGENT REQUESTS", color = Color.Red, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(horizontal = 16.dp)) }
+                    items(nearbyAlerts) { alert ->
+                        val distStr = helperLocation?.let {
+                            val loc = Location("").apply { latitude = alert.location.latitude; longitude = alert.location.longitude }
+                            String.format("%.1f km", it.distanceTo(loc) / 1000)
+                        } ?: "?"
+                        NearbyAlertItem(alert, distStr) { selectedAlert = alert }
+                    }
+                } else {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No active SOS calls nearby.", color = Color.Gray)
+                        }
+                    }
                 }
-            } else if (isActive) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("No active SOS calls nearby.", color = Color.Gray)
+
+                if (outsideAlerts.isNotEmpty()) {
+                    item { Text("Outside Radius", color = Color.Gray, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp)) }
+                    items(outsideAlerts) { alert ->
+                        val distStr = helperLocation?.let {
+                            val loc = Location("").apply { latitude = alert.location.latitude; longitude = alert.location.longitude }
+                            String.format("%.1f km", it.distanceTo(loc) / 1000)
+                        } ?: "?"
+                        NearbyAlertItem(alert, distStr) { selectedAlert = alert }
                     }
                 }
             }
 
-            if (outsideAlerts.value.isNotEmpty()) {
-                item { Text("Outside Radius", color = Color.Gray, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp)) }
-                items(outsideAlerts.value) { alert ->
-                    val distStr = if (helperLocation != null) {
-                        val tLoc = Location("").apply { latitude = alert.location.latitude; longitude = alert.location.longitude }
-                        val d = helperLocation!!.distanceTo(tLoc) / 1000
-                        String.format("%.1f km", d)
-                    } else "?"
-                    NearbyAlertItem(alert, distStr) { selectedAlert = alert }
-                }
-            }
-
-            // Switch Mode Button
+            // Quick Actions & Switch Mode
             item {
-                if (onSwitchToUserMode != null) {
-                    TextButton(onClick = onSwitchToUserMode, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                        Icon(Icons.Default.SwitchAccount, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Switch to User Mode")
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    Text("Quick Actions", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        QuickActionButton(Icons.Default.Settings, "Profile") { onNavigate(HelperScreen.PROFILE) }
+                        QuickActionButton(Icons.Default.Help, "Support") { onNavigate(HelperScreen.SUPPORT) }
+                        QuickActionButton(Icons.Default.History, "History") { onNavigate(HelperScreen.HISTORY) }
+                    }
+                    if (onSwitchToUserMode != null) {
+                        Spacer(Modifier.height(24.dp))
+                        TextButton(onClick = onSwitchToUserMode, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.SwitchAccount, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Switch to User Mode")
+                        }
                     }
                 }
             }
@@ -407,7 +279,6 @@ fun HelperDashboard(
                         if(isProcessing) {
                             Spacer(Modifier.height(10.dp))
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text("Accepting request...", fontSize = 12.sp, color = Color.Gray)
                         }
                     }
                 },
@@ -429,7 +300,7 @@ fun HelperDashboard(
 @Composable
 fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, label, tint = color)
+        Icon(icon, null, tint = color)
         Text(value, fontWeight = FontWeight.Bold)
         Text(label, fontSize = 12.sp, color = Color.Gray)
     }
@@ -439,13 +310,12 @@ fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: Strin
 fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(onClick = onClick, modifier = Modifier.background(Color(0xFFF5F5F5), CircleShape)) {
-            Icon(icon, label, tint = Color(0xFF6200EE))
+            Icon(icon, null, tint = Color(0xFF6200EE))
         }
         Text(label, fontSize = 12.sp)
     }
 }
 
-// --- UPDATED AESTHETIC ALERT ITEM ---
 @Composable
 fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
     val timeAgo = remember(alert.timestamp) {
@@ -455,95 +325,23 @@ fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(6.dp),
-        border = BorderStroke(1.5.dp, Color(0xFF1976D2)), // Blue Border
+        elevation = CardDefaults.cardElevation(4.dp),
+        border = BorderStroke(1.dp, Color(0xFF1976D2)),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color(0xFFE3F2FD), CircleShape), // Light Blue BG
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsActive,
-                    contentDescription = "Alert",
-                    tint = Color(0xFFD32F2F), // Red Icon for Urgency
-                    modifier = Modifier.size(28.dp)
-                )
+        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(48.dp).background(Color(0xFFE3F2FD), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.NotificationsActive, null, tint = Color(0xFFD32F2F))
             }
-
             Spacer(Modifier.width(16.dp))
-
-            // Info Column
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = alert.userName.ifBlank { "SheShield User" },
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                // Distance Row
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Place,
-                        contentDescription = null,
-                        tint = Color(0xFF1976D2), // Blue Location Pin
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "$distance away",
-                        fontSize = 14.sp,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                // Time Row
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.AccessTime,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = timeAgo,
-                        fontSize = 13.sp,
-                        color = Color.Gray
-                    )
-                }
+                Text(alert.userName.ifBlank { "SheShield User" }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("$distance away • $timeAgo", fontSize = 13.sp, color = Color.Gray)
             }
-
-            // Accept Button
-            Button(
-                onClick = onAccept,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD32F2F), // Red Button
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(40.dp)
-            ) {
-                Text("ACCEPT", fontWeight = FontWeight.Bold)
+            Button(onClick = onAccept, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) {
+                Text("VIEW")
             }
         }
     }

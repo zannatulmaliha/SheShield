@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.SosViewModel
+// ADDED THESE MISSING IMPORTS:
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 
 private val Green600 = Color(0xFF16A34A)
@@ -108,7 +111,18 @@ fun TimedCheckIn(
             timeLeft -= 1
         } else if (isActive && timeLeft <= 0) {
             isActive = false
+
+            // 1. Send normal SOS from User's phone
             sosViewModel.sendSosAlert(context)
+
+            // 2. Update Firestore so the Monitoring Contact sees it immediately RED
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser != null) {
+                FirebaseFirestore.getInstance().collection("active_sessions")
+                    .document(currentUser.uid)
+                    .update("status", "MISSED_CHECK_IN")
+            }
+
             onNavigate("sos-active")
             onBack()
         }

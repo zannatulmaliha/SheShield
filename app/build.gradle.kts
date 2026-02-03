@@ -96,19 +96,24 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    val cameraxVersion = "1.3.1" // Use the latest stable version
 
-    // CameraX
-    implementation("androidx.camera:camera-core:1.3.0")
-    implementation("androidx.camera:camera-camera2:1.3.0")
-    implementation("androidx.camera:camera-lifecycle:1.3.0")
-    implementation("androidx.camera:camera-view:1.3.0")
-// ML Kit Face Detection
-    implementation("com.google.mlkit:face-detection:16.1.5")
-    implementation("com.google.mlkit:text-recognition:16.0.0")
-// Jetpack Compose
-    implementation("androidx.compose.ui:ui:1.5.0")
-    implementation("androidx.compose.material3:material3:1.2.0")
-    implementation("androidx.activity:activity-compose:1.9.0")
+    // CameraX core library using the camera2 implementation
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    // CameraX Lifecycle library
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    // CameraX View class (PreviewView)
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    // CameraX Extensions (optional but good for effects)
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    // Also ensure ML Kit is here for your face detection
+    implementation("com.google.mlkit:face-detection:16.1.6")
+
+    // Firebase Vertex AI for Gemini 3 Flash
+    implementation("com.google.firebase:firebase-vertexai:16.0.0")
+
+    // Ensure you also have the Firebase BoM (Bill of Materials)
+    // to manage versions automatically
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
 }
