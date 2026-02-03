@@ -1,9 +1,8 @@
 [
-  
   {
     "id": "safe_gz_01",
-    "lat": 23.8215,
-    "lng": 90.4160,
+    "lat": 23.944787,
+    "lng": 90.382662,
     "type": "SAFE_SHELTER",
     "severity": 0,
     "description": "Boardbazar Police Outpost: 24/7 Guarded."
@@ -15,14 +14,6 @@
     "type": "SAFE_SHELTER",
     "severity": 0,
     "description": "Shilmoon Specialized Hospital: 24/7 Open to Public, Medical Assistance Available."
-  },
-  {
-    "id": "safe_gz_03",
-    "lat": 23.9512,
-    "lng": 90.4025,
-    "type": "SAFE_SHELTER",
-    "severity": 0,
-    "description": "Gazipur City Corporation Office: Well-Lit, Guarded Area."
   },
   {
     "id": "safe_dk_04",
@@ -56,14 +47,12 @@
     "severity": 0,
     "description": "Gulshan 1 Police Box: 24/7 Guarded, CCTV Surveillance."
   },
-
-
   {
     "id": "dang_gz_08",
     "lat": 23.8975,
     "lng": 90.4008,
     "type": "POOR_LIGHTING",
-    "severity": 10,
+    "severity": 6,
     "description": "Boardbazar Intersection: High Conflict Risk, especially after dark.",
     "time": "2024-12-10T21:45:00"
   },
@@ -72,7 +61,7 @@
     "lat": 23.9250,
     "lng": 90.4140,
     "type": "ASSAULT",
-    "severity": 8,
+    "severity": 4,
     "description": "Gazipur: Narrow alleyway: Poor visibility, assault risk.",
     "time": "2024-12-15T20:05:00"
   },
@@ -81,7 +70,7 @@
     "lat": 23.7505,
     "lng": 90.3923,
     "type": "HARASSMENT",
-    "severity": 7,
+    "severity": 6,
     "description": "Farmgate Bus Stand: Crowded/Harassment risk, especially during peak hours.",
     "time": "2024-05-12T18:45:00"
   },
@@ -90,7 +79,7 @@
     "lat": 23.7288,
     "lng": 90.4174,
     "type": "ASSAULT",
-    "severity": 9,
+    "severity": 5,
     "description": "Motijheel Commercial Area: High risk of assault, especially at night.",
     "time": "2024-06-03T21:10:00"
   },
@@ -99,7 +88,7 @@
     "lat": 23.7621,
     "lng": 90.3702,
     "type": "THEFT",
-    "severity": 6,
+    "severity": 5,
     "description": "Dhanmondi Lake (Walkway side): Pickpocketing reported frequently.",
     "time": "2024-07-22T20:30:00"
   },
@@ -108,7 +97,7 @@
     "lat": 23.7511,
     "lng": 90.3686,
     "type": "MUGGING",
-    "severity": 8,
+    "severity": 4,
     "description": "Mohammadpur Shia Mosque area: High risk of mugging.",
     "time": "2024-11-25T23:15:00"
   },
@@ -117,7 +106,7 @@
     "lat": 23.7215,
     "lng": 90.3956,
     "type": "HARASSMENT",
-    "severity": 8,
+    "severity": 6,
     "description": "Sadarghat Terminal: Crowd chaos, especially during ferry boarding times.",
     "time": "2024-10-05T22:40:00"
   },
@@ -126,7 +115,7 @@
     "lat": 23.8700,
     "lng": 90.3900,
     "type": "ASSAULT",
-    "severity": 5,
+    "severity": 3,
     "description": "Uttara: Sector 11 Park side: Dark at night, occasional reports of assault.",
     "time": "2024-11-15T19:00:00"
   },
@@ -138,5 +127,134 @@
     "severity": 5,
     "description": "Gabtali: Harassment reported near bus stops.",
     "time": "2024-11-15T19:00:00"
+  },
+  {
+    "id": "dang_ashulia_01",
+    "lat": 23.893944,
+    "lng": 90.386972,
+    "type": "MUGGING",
+    "severity": 6,
+    "description": "Dhaka-Ashulia Highway: Frequent mugging reported near this section.",
+    "time": "2024-12-20T22:15:00"
+  },
+  {
+    "id": "safe_apbn_hq_01",
+    "lat": 23.8556796,
+    "lng": 90.4049974,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Armed Police Battalion HQ: Highly secure facility with 24/7 armed personnel presence."
+  },
+  {
+    "id": "dang_kuril_01",
+    "lat": 23.820885,
+    "lng": 90.419869,
+    "type": "ASSAULT",
+    "severity": 6,
+    "description": "Under Kuril Flyover: Isolated area with blind spots and poor lighting. High risk of assault.",
+    "time": "2024-12-28T21:30:00"
+  },
+  {
+    "id": "safe_bashundhara_01",
+    "lat": 23.8131215,
+    "lng": 90.4303179,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Bashundhara Residential Area: Private guarded neighborhood with multiple security checkpoints and patrol."
+  },
+  {
+    "id": "dang_mh_morning_01",
+    "lat": 23.756333,
+    "lng": 90.368767,
+    "type": "MUGGING",
+    "severity": 6,
+    "description": "Desolate street during early morning hours. High risk of mugging due to low foot traffic.",
+    "time": "2024-12-30T05:45:00"
+  },
+  {
+    "id": "dang_newmarket_01",
+    "lat": 23.732569,
+    "lng": 90.385249,
+    "type": "THEFT",
+    "severity": 6,
+    "description": "Crowded market area. High incidence of pickpocketing and mobile theft reported.",
+    "time": "2024-12-29T16:20:00"
+  },
+  {
+    "id": "dang_lalbagh_01",
+    "lat": 23.719880,
+    "lng": 90.387671,
+    "type": "ASSAULT",
+    "severity": 6,
+    "description": "Narrow, winding roads with poor visibility. Attempted assault reported due to isolation.",
+    "time": "2024-12-25T22:10:00"
+  },
+  {
+    "id": "dang_buet_area_01",
+    "lat": 23.727228,
+    "lng": 90.386327,
+    "type": "HARASSMENT",
+    "severity": 4,
+    "description": "Harassment by local groups reported. Area lacks regular police patrolling.",
+    "time": "2024-12-28T20:15:00"
+  },
+  {
+    "id": "safe_satmasjid_01",
+    "lat": 23.745466,
+    "lng": 90.371711,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Satmasjid Road: Major thoroughfare lined with restaurants and shops. High pedestrian traffic and well-lit environment make it safe for seeking help."
+  },
+  {
+    "id": "safe_asadgate_01",
+    "lat": 23.760159,
+    "lng": 90.372868,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Asad Gate Traffic Police Box: Major intersection with constant police presence and traffic monitoring."
+  },
+  {
+    "id": "dang_katabon_01",
+    "lat": 23.737535,
+    "lng": 90.390294,
+    "type": "HARASSMENT",
+    "severity": 5,
+    "description": "Katabon Market Area: Reports of verbal street harassment near the pet and book shops.",
+    "time": "2024-12-27T17:30:00"
+  },
+  {
+    "id": "dang_azimpur_01",
+    "lat": 23.726969,
+    "lng": 90.382967,
+    "type": "THEFT",
+    "severity": 4,
+    "description": "Near Azimpur Graveyard: Area becomes desolate at night. Reports of snatching and theft due to low visibility.",
+    "time": "2024-12-26T23:00:00"
+  },
+  {
+    "id": "safe_jnu_campus_01",
+    "lat": 23.708744,
+    "lng": 90.411797,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Jagannath University Campus: Active student area with security personnel. Help readily available from crowd and authorities."
+  },
+  {
+    "id": "safe_niloy_01",
+    "lat": 23.931717,
+    "lng": 90.367319,
+    "type": "SAFE_SHELTER",
+    "severity": 0,
+    "description": "Niloy Residential Area: Guarded apartment complex. Community help and security available."
+  },
+  {
+    "id": "dang_kanchon_01",
+    "lat": 23.836005,
+    "lng": 90.545752,
+    "type": "MUGGING",
+    "severity": 6,
+    "description": "Kanchon Bridge: Reports of mugging at gunpoint. Extremely high risk area.",
+    "time": "2026-02-01T23:45:00"
   }
 ]
