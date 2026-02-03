@@ -1,23 +1,24 @@
 package com.example.sheshield.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.sheshield.models.VerificationStatus
 import com.example.sheshield.screens.helper.LivePhotoCapture
-
 import com.example.sheshield.screens.helper.NIDUploadScreen
-import java.io.File
-
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import java.io.File
 
 @Composable
 fun VerificationScreen(
@@ -29,175 +30,175 @@ fun VerificationScreen(
     var showLivePhoto by remember { mutableStateOf(false) }
     var lastCapturedFile by remember { mutableStateOf<File?>(null) }
     var statusMessage by remember { mutableStateOf("") }
-
-    var showPhoneVerification by remember { mutableStateOf(false) }
-
-    //var userId by remember { mutableStateOf("") } // You need to get actual user ID
+    var showNIDUpload by remember { mutableStateOf(false) }
 
     val auth = Firebase.auth
     val currentUser = auth.currentUser
 
-    // Generate user ID for filename
     val userId = remember {
         currentUser?.uid ?:
-        currentUser?.email?.let { email ->
-            email.replace("@", "_at_")
-                .replace(".", "_dot_")
-                .toLowerCase()
-        } ?: "user_${System.currentTimeMillis()}"
+        currentUser?.email?.replace("@", "_at_")?.replace(".", "_dot_")
+        ?: "user_${System.currentTimeMillis()}"
     }
-
-
-    var showNIDUpload by remember { mutableStateOf(false) } // Add this
-
-
-
-
 
     if (showNIDUpload) {
         NIDUploadScreen(
             userId = userId,
-            onUploadComplete = { paths ->
-                // Check what's in the single folder
-                val allFiles = File(context.filesDir, "NID_ALL")
-                    .listFiles()?.map { it.name } ?: emptyList()
-                println("📁 All NID files in single folder: $allFiles")
-
-                showNIDUpload = false
+            onUploadComplete = {
                 status = status.copy(nid = true)
+                showNIDUpload = false
             },
             onBack = { showNIDUpload = false }
         )
         return
     }
 
-
     if (showLivePhoto) {
         LivePhotoCapture { success, file ->
             if (success) {
                 status = status.copy(livePhoto = true)
                 lastCapturedFile = file
-                statusMessage = "✅ Human face detected!"
+                statusMessage = "✅ Face verified successfully"
+            } else {
+                statusMessage = "❌ Face not detected. Try again"
             }
-            else {
-                // Show message in parent UI
-                 statusMessage = "❌ No human face detected. Try again."
-            }
-            showLivePhoto = false // close camera after capture
-        }
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Opening camera...")
+            showLivePhoto = false
         }
 
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = PurpleGlow)
+        }
         return
     }
-
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center  // <-- centers the Column
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF12001F),
+                        Color(0xFF1B0033),
+                        Color(0xFF0F001A)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
     ) {
+
         Column(
-            modifier = Modifier.wrapContentHeight(),
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+                .border(
+                    1.dp,
+                    Color.White.copy(alpha = 0.18f),
+                    RoundedCornerShape(24.dp)
+                )
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Complete Verification", style = MaterialTheme.typography.headlineSmall)
+
+            Text(
+                text = "Verification",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White
+            )
 
             if (statusMessage.isNotEmpty()) {
-                Text(statusMessage, color = Color.Red)
-                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = statusMessage,
+                    color = PurpleGlow
+                )
             }
 
-
-
-
-            VerificationButton(
+            GlassButton(
                 text = "Live Photo Verification",
                 done = status.livePhoto
             ) {
-                statusMessage = "" // reset message
+                statusMessage = ""
                 showLivePhoto = true
-//            status = status.copy(livePhoto = true)
             }
 
-            VerificationButton(
+            GlassButton(
                 text = "Upload NID",
                 done = status.nid
             ) {
                 showNIDUpload = true
-//            status = status.copy(nid = true) // placeholder
             }
-
-
-
-//            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = onVerificationComplete,
-                enabled = status.isFullyVerified()
+                enabled = status.isFullyVerified(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PurpleGlow
+                )
             ) {
-                Text("Continue")
+                Text("Continue", color = Color.White)
             }
-//            Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ Add a back button to go to login
-            OutlinedButton(
-                onClick = onBackToLogin,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Back to Login")
+            TextButton(onClick = onBackToLogin) {
+                Text(
+                    "Back to Login",
+                    color = Color.White.copy(alpha = 0.7f)
+                )
             }
         }
     }
-//    if (showPhoneVerification) {
-//        Box(
-//            modifier = Modifier
-//                .fillMaxSize(),
-//            contentAlignment = Alignment.Center
-//        ) {
-//            Card(
-//                modifier = Modifier
-//                    .fillMaxWidth(0.9f)
-//                    .wrapContentHeight(),
-//                shape = MaterialTheme.shapes.large,
-//                elevation = CardDefaults.cardElevation(8.dp)
-//            ) {
-//                PhoneVerificationScreen(
-//                    onVerified = {
-//                        status = status.copy(phone = true)
-//                        showPhoneVerification = false
-//                    },
-//                    onBack = { showPhoneVerification = false }
-//                )
-//            }
-//        }
-//    }
-//    if (showPhoneVerification) {
-//
-//    }
-
 }
 
 @Composable
-private fun VerificationButton(
+private fun GlassButton(
     text: String,
     done: Boolean,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (done)
-            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-        else
-            ButtonDefaults.buttonColors()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                if (done)
+                    PurpleGlow.copy(alpha = 0.25f)
+                else
+                    Color.White.copy(alpha = 0.08f)
+            )
+            .border(
+                1.dp,
+                PurpleGlow.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp)
+            )
     ) {
-        Text(if (done) "✔ $text" else text)
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = if (done) "✔ $text" else text,
+                color = Color.White
+            )
+        }
     }
 }
+
+private val PurpleGlow = Color(0xFFB388FF)

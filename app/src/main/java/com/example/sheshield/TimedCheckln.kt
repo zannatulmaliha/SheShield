@@ -7,9 +7,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -20,8 +22,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
@@ -32,19 +36,19 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.SOS.SosViewModel
-// ADDED THESE MISSING IMPORTS:
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 
-private val Green600 = Color(0xFF16A34A)
-private val Purple600 = Color(0xFF9333EA)
-
-private val Red600 = Color(0xFFDC2626)
-private val Orange600 = Color(0xFFEA580C)
-private val Yellow600 = Color(0xFFCA8A04)
-private val Gray50 = Color(0xFFF9FAFB)
-private val Gray200 = Color(0xFFE5E7EB)
+// --- BRAND PALETTE ---
+private val MidnightBase = Color(0xFF0B0F1A)
+private val TopBarDeep = Color(0xFF1E1B4B)
+private val GlassWhite = Color(0xFFFFFFFF).copy(alpha = 0.1f)
+private val GlassBorder = Color(0xFFFFFFFF).copy(alpha = 0.15f)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val AccentEmerald = Color(0xFF10B981)
+private val AccentOrange = Color(0xFFF59E0B)
+private val AccentRed = Color(0xFFEF4444)
 
 @Composable
 fun TimedCheckIn(
@@ -54,18 +58,15 @@ fun TimedCheckIn(
 ) {
     val context = LocalContext.current
 
-    // --- State Management ---
     var isActive by remember { mutableStateOf(false) }
     var selectedMinutes by remember { mutableIntStateOf(30) }
     var timeLeft by remember { mutableLongStateOf(0L) }
     var isPaused by remember { mutableStateOf(false) }
 
-    // --- Initialize Location Client ---
     LaunchedEffect(Unit) {
         sosViewModel.initLocationClient(context)
     }
 
-    // --- Permission Handling ---
     val requiredPermissions = arrayOf(
         Manifest.permission.SEND_SMS,
         Manifest.permission.ACCESS_FINE_LOCATION
@@ -76,7 +77,6 @@ fun TimedCheckIn(
         onResult = { permissions ->
             val smsGranted = permissions[Manifest.permission.SEND_SMS] ?: false
             val locGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-
             if (smsGranted && locGranted) {
                 Toast.makeText(context, "Safety features enabled", Toast.LENGTH_SHORT).show()
             } else {
@@ -85,17 +85,15 @@ fun TimedCheckIn(
         }
     )
 
-    // Check permissions on launch
     LaunchedEffect(Unit) {
-        val missingPermissions = requiredPermissions.filter { permission ->
-            ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+        val missingPermissions = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
         if (missingPermissions.isNotEmpty()) {
             permissionLauncher.launch(requiredPermissions)
         }
     }
 
-    // --- Focus Management ---
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isActive) {
@@ -104,36 +102,28 @@ fun TimedCheckIn(
         }
     }
 
-    // --- Timer Logic ---
     LaunchedEffect(isActive, isPaused, timeLeft) {
         if (isActive && !isPaused && timeLeft > 0) {
             delay(1000L)
             timeLeft -= 1
         } else if (isActive && timeLeft <= 0) {
             isActive = false
-
-            // 1. Send normal SOS from User's phone
             sosViewModel.sendSosAlert(context)
-
-            // 2. Update Firestore so the Monitoring Contact sees it immediately RED
             val currentUser = FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 FirebaseFirestore.getInstance().collection("active_sessions")
                     .document(currentUser.uid)
                     .update("status", "MISSED_CHECK_IN")
             }
-
             onNavigate("sos-active")
             onBack()
         }
     }
 
-    // --- Helper Functions ---
     fun handleStart() {
-        val missingPermissions = requiredPermissions.filter { permission ->
-            ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+        val missingPermissions = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
-
         if (missingPermissions.isEmpty()) {
             timeLeft = selectedMinutes * 60L
             isActive = true
@@ -154,12 +144,12 @@ fun TimedCheckIn(
     }
 
     val headerColor by animateColorAsState(
-        targetValue = if (isActive) Orange600 else Purple600,
+        targetValue = if (isActive) AccentOrange else AccentPurple,
         label = "HeaderColor"
     )
 
     Scaffold(
-        containerColor = Gray50,
+        containerColor = MidnightBase,
         modifier = Modifier
             .fillMaxSize()
             .focusRequester(focusRequester)
@@ -182,34 +172,34 @@ fun TimedCheckIn(
                 }
             },
         topBar = {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(headerColor)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+                    .background(Brush.verticalGradient(listOf(TopBarDeep, MidnightBase.copy(0.8f))))
+                    .padding(top = 45.dp, bottom = 25.dp, start = 20.dp, end = 20.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Timed Check-In",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (isActive) "Timer active" else "Set a safety countdown",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                }
-                IconButton(onClick = { onBack() }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { onBack() },
+                        modifier = Modifier.background(GlassWhite, CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, "Close", tint = Color.White)
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("Timed Check-In", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            if (isActive) "Timer active" else "Set safety countdown",
+                            color = headerColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
     ) { paddingValues ->
-
         Column(
             modifier = Modifier
                 .padding(paddingValues)
@@ -238,82 +228,80 @@ fun TimedCheckIn(
     }
 }
 
-// ----------------------------------------------------------------
-// Sub-Composables
-// ----------------------------------------------------------------
-
 @Composable
 fun SetupTimerView(
     selectedMinutes: Int,
     onMinutesSelected: (Int) -> Unit,
     onStart: () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GlassWhite, RoundedCornerShape(24.dp))
+            .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
+            .padding(24.dp)
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Text("Set Check-In Time", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("How long until check-in?", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-            Spacer(modifier = Modifier.height(12.dp))
+        Column {
+            Text("Set Check-In Time", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Spacer(Modifier.height(16.dp))
 
             val presets = listOf(15, 30, 45, 60, 90, 120)
-            Column {
-                val rows = presets.chunked(3)
-                rows.forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        rowItems.forEach { mins ->
-                            Button(
-                                onClick = { onMinutesSelected(mins) },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (selectedMinutes == mins) Purple600 else Gray50,
-                                    contentColor = if (selectedMinutes == mins) Color.White else Color.Gray
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("$mins min")
-                            }
+            presets.chunked(3).forEach { rowItems ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rowItems.forEach { mins ->
+                        Button(
+                            onClick = { onMinutesSelected(mins) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedMinutes == mins) AccentPurple else GlassWhite,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("$mins min", fontSize = 12.sp)
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
+                Spacer(Modifier.height(12.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = selectedMinutes.toString(),
                 onValueChange = { if (it.isNotEmpty()) onMinutesSelected(it.toIntOrNull() ?: 0) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                label = { Text("Custom Minutes") }
+                label = { Text("Custom Minutes", color = Color.White.copy(0.5f)) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = AccentPurple,
+                    unfocusedBorderColor = GlassBorder
+                )
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Surface(
-                color = Purple600.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
+
+            Spacer(Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AccentPurple.copy(0.1f), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
             ) {
                 Text(
-                    text = "If you don't check in within $selectedMinutes minutes, SOS will be sent automatically.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Black,
-                    modifier = Modifier.padding(12.dp)
+                    "SOS will trigger automatically if you don't check in within $selectedMinutes mins.",
+                    color = Color.White.copy(0.7f),
+                    fontSize = 12.sp
                 )
             }
         }
     }
-    Spacer(modifier = Modifier.height(24.dp))
+    Spacer(Modifier.height(24.dp))
     Button(
         onClick = onStart,
         modifier = Modifier.fillMaxWidth().height(56.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Purple600),
+        colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Text("Start Timer", fontSize = 16.sp)
+        Text("Start Safety Timer", fontWeight = FontWeight.Bold)
     }
 }
 
@@ -328,79 +316,83 @@ fun ActiveTimerView(
     formatTime: (Long) -> String
 ) {
     val stateColor = when {
-        timeLeft <= 120 -> Red600
-        timeLeft <= 300 -> Yellow600
-        else -> Green600
+        timeLeft <= 120 -> AccentRed
+        timeLeft <= 300 -> AccentOrange
+        else -> AccentEmerald
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = stateColor),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-        shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(stateColor.copy(0.15f), RoundedCornerShape(28.dp))
+            .border(2.dp, stateColor.copy(0.4f), RoundedCornerShape(28.dp))
+            .padding(24.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Outlined.Timer, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(48.dp))
-            Text(formatTime(timeLeft), fontSize = 60.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(if (isPaused) "Paused" else "Time Remaining", color = Color.White.copy(alpha = 0.9f))
-            Spacer(modifier = Modifier.height(24.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Outlined.Timer, null, tint = stateColor, modifier = Modifier.size(48.dp))
+            Text(formatTime(timeLeft), fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White)
+            Text(if (isPaused) "PAUSED" else "TIME REMAINING", color = Color.White.copy(0.5f), letterSpacing = 2.sp)
+            Spacer(Modifier.height(24.dp))
             LinearProgressIndicator(
                 progress = { if (totalTime > 0) timeLeft.toFloat() / totalTime else 0f },
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.3f)
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                color = stateColor,
+                trackColor = GlassWhite
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
             Button(
                 onClick = onTogglePause,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f))
+                colors = ButtonDefaults.buttonColors(containerColor = GlassWhite),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text(if (isPaused) "Resume" else "Pause")
+                Text(if (isPaused) "Resume" else "Pause", color = Color.White)
             }
         }
     }
 
+    Spacer(Modifier.height(24.dp))
+
     if (timeLeft <= 120) {
-        WarningCard(Red600, "Urgent: Check In Now!", "SOS will trigger soon!")
+        WarningCard(AccentRed, "Urgent: Check In Now!", "SOS will trigger soon!")
     } else if (timeLeft <= 300) {
-        WarningCard(Yellow600, "Reminder", "Please check in soon.")
+        WarningCard(AccentOrange, "Reminder", "Please check in soon.")
     }
 
     Button(
         onClick = onCheckIn,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Green600),
-        shape = RoundedCornerShape(16.dp)
+        modifier = Modifier.fillMaxWidth().height(60.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = AccentEmerald),
+        shape = RoundedCornerShape(18.dp)
     ) {
-        Text("I'm Safe - Check In Now", fontSize = 16.sp)
+        Icon(Icons.Default.Shield, null)
+        Spacer(Modifier.width(8.dp))
+        Text("I'M SAFE - CHECK IN", fontWeight = FontWeight.Black)
     }
-    Spacer(modifier = Modifier.height(12.dp))
-    Button(
+    Spacer(Modifier.height(12.dp))
+    TextButton(
         onClick = onCancel,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Gray200, contentColor = Color.Gray),
-        shape = RoundedCornerShape(16.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text("Cancel Timer")
+        Text("Cancel Timer", color = Color.White.copy(0.5f))
     }
 }
 
 @Composable
 fun WarningCard(color: Color, title: String, text: String) {
-    Surface(
-        color = color.copy(alpha = 0.1f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
+            .background(color.copy(0.1f), RoundedCornerShape(16.dp))
+            .border(1.dp, color.copy(0.3f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
     ) {
-        Row(modifier = Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Warning, contentDescription = null, tint = color)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(title, color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                Text(text, color = color.copy(alpha = 0.9f), style = MaterialTheme.typography.bodySmall)
+                Text(title, color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(text, color = Color.White.copy(0.7f), fontSize = 12.sp)
             }
         }
     }
