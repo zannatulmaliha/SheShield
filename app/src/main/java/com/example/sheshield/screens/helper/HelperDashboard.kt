@@ -93,7 +93,8 @@ fun HelperDashboard(
     LaunchedEffect(isActive) {
         if (isActive) {
             val oneDayAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
-            val listener = db.collection("alerts")
+
+            db.collection("alerts")
                 .whereEqualTo("status", "active")
                 .addSnapshotListener { snapshots, e ->
                     if (e != null) return@addSnapshotListener
@@ -102,23 +103,32 @@ fun HelperDashboard(
                         for (doc in snapshots) {
                             try {
                                 val alert = doc.toObject(Alert::class.java).copy(id = doc.id)
-                                if (alert.timestamp > oneDayAgo && alert.userId != userId) {
-                                    allActiveAlerts.add(alert)
+
+                                // Logic: Show valid alerts.
+                                // NOTE: I removed "alert.userId != userId" so you can test self-rescue.
+                                // If you want to hide your own alerts, add "&& alert.userId != userId" back.
+                                if (alert.timestamp > oneDayAgo) {
+
+                                    // Fallback for missing names
+                                    if (alert.userName.isBlank()) {
+                                        val fixedAlert = alert.copy(userName = "SheShield User")
+                                        allActiveAlerts.add(fixedAlert)
+                                    } else {
+                                        allActiveAlerts.add(alert)
+                                    }
                                 }
                             } catch (e: Exception) { Log.e("Dashboard", "Error parsing", e) }
                         }
                         allActiveAlerts.sortByDescending { it.timestamp }
                     }
                 }
-            // Clean up listener when effect leaves or isActive changes
         } else {
             allActiveAlerts.clear()
         }
     }
 
-    // --- 5. DERIVED FILTERED LISTS (FIXES THE "CLEAR" ERROR) ---
-    // These update automatically when any dependent state changes.
-    val nearbyAlerts by remember(allActiveAlerts, helperLocation, radiusKm) {
+    // --- 5. DERIVED FILTERED LISTS ---
+    val nearbyAlerts by remember(allActiveAlerts.size, helperLocation, radiusKm) {
         derivedStateOf {
             if (helperLocation == null) emptyList<Alert>()
             else allActiveAlerts.filter {
@@ -130,7 +140,7 @@ fun HelperDashboard(
         }
     }
 
-    val outsideAlerts by remember(allActiveAlerts, helperLocation, radiusKm) {
+    val outsideAlerts by remember(allActiveAlerts.size, helperLocation, radiusKm) {
         derivedStateOf {
             if (helperLocation == null) emptyList<Alert>()
             else allActiveAlerts.filter {
@@ -151,6 +161,7 @@ fun HelperDashboard(
         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
     }
 
+    // === CRITICAL FIX IS HERE ===
     fun acceptAlert(alert: Alert) {
         isProcessing = true
         val updates = mapOf(
@@ -159,11 +170,18 @@ fun HelperDashboard(
             "responderName" to (userData?.name ?: "Helper"),
             "acceptedAt" to System.currentTimeMillis()
         )
+
         db.collection("alerts").document(alert.id).update(updates)
             .addOnSuccessListener {
                 isProcessing = false
                 selectedAlert = null
+
+                // --- THIS LINE WAS MISSING IN VERSION 2 ---
+                // This starts Google Maps Navigation
+                com.example.sheshield.screens.helper.HelperTrackingLogic.startNavigationToUser(context, alert)
+
                 onAcceptAlert(alert)
+                Toast.makeText(context, "Alert Accepted! Navigating...", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 isProcessing = false
@@ -255,6 +273,7 @@ fun HelperDashboard(
                         QuickActionButton(Icons.Default.Settings, "Profile") { onNavigate(HelperScreen.PROFILE) }
                         QuickActionButton(Icons.Default.Help, "Support") { onNavigate(HelperScreen.SUPPORT) }
                         QuickActionButton(Icons.Default.History, "History") { onNavigate(HelperScreen.HISTORY) }
+                        QuickActionButton(Icons.Default.School, "Training") { /* TODO */ }
                     }
                     if (onSwitchToUserMode != null) {
                         Spacer(Modifier.height(24.dp))
@@ -279,6 +298,7 @@ fun HelperDashboard(
                         if(isProcessing) {
                             Spacer(Modifier.height(10.dp))
                             LinearProgressIndicator(Modifier.fillMaxWidth())
+                            Text("Accepting...", fontSize = 12.sp, color = Color.Gray)
                         }
                     }
                 },
@@ -316,6 +336,7 @@ fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, lab
     }
 }
 
+// --- UPDATED AESTHETIC ALERT ITEM (Version 1 Style) ---
 @Composable
 fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
     val timeAgo = remember(alert.timestamp) {
@@ -325,23 +346,95 @@ fun NearbyAlertItem(alert: Alert, distance: String, onAccept: () -> Unit) {
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp),
-        border = BorderStroke(1.dp, Color(0xFF1976D2)),
+        elevation = CardDefaults.cardElevation(6.dp),
+        border = BorderStroke(1.5.dp, Color(0xFF1976D2)), // Blue Border (Requested Style)
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(48.dp).background(Color(0xFFE3F2FD), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.NotificationsActive, null, tint = Color(0xFFD32F2F))
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color(0xFFE3F2FD), CircleShape), // Light Blue BG
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = "Alert",
+                    tint = Color(0xFFD32F2F), // Red Icon for Urgency
+                    modifier = Modifier.size(28.dp)
+                )
             }
+
             Spacer(Modifier.width(16.dp))
+
+            // Info Column
             Column(modifier = Modifier.weight(1f)) {
-                Text(alert.userName.ifBlank { "SheShield User" }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("$distance away • $timeAgo", fontSize = 13.sp, color = Color.Gray)
+                Text(
+                    text = alert.userName.ifBlank { "SheShield User" },
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                // Distance Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Place,
+                        contentDescription = null,
+                        tint = Color(0xFF1976D2), // Blue Location Pin
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "$distance away",
+                        fontSize = 14.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Time Row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.AccessTime,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = timeAgo,
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                }
             }
-            Button(onClick = onAccept, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))) {
-                Text("VIEW")
+
+            // Accept Button
+            Button(
+                onClick = onAccept,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD32F2F), // Red Button
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Text("ACCEPT", fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.sheshield"
-    compileSdk = 36
+    compileSdk = 36 // Stable for early 2026
 
     defaultConfig {
         applicationId = "com.example.sheshield"
@@ -44,11 +44,11 @@ android {
 }
 
 dependencies {
-
     /* -------------------- Core AndroidX -------------------- */
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
 
     /* -------------------- Jetpack Compose -------------------- */
     implementation(platform(libs.androidx.compose.bom))
@@ -62,30 +62,39 @@ dependencies {
     /* -------------------- Navigation -------------------- */
     implementation(libs.androidx.navigation.compose)
 
-    /* -------------------- 🔥 Firebase (ONE BOM ONLY) -------------------- */
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    /* -------------------- 🔥 Firebase (Updated 2026) -------------------- */
+    // Using the latest 2026 BoM to manage versions automatically
+    implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
 
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("com.google.firebase:firebase-messaging-ktx")
-    implementation("com.google.firebase:firebase-functions-ktx")
+    // ✅ FIXED: Removed "-ktx" from all dependencies.
+    // Kotlin extensions are now included in the main modules.
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-functions")
+
+    // ✅ NEW: Modern AI Logic library for Gemini 3
+    implementation("com.google.firebase:firebase-ai")
 
     /* -------------------- Location & Maps -------------------- */
-    implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation(libs.maps.compose) // Google Maps Compose
-    implementation(libs.play.services.maps) // Google Maps SDK
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
-    /* -------------------- WorkManager -------------------- */
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    /* -------------------- Camera & ML Kit -------------------- */
+    val cameraxVersion = "1.4.1" // Updated to a more recent stable version
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 
-    /* -------------------- Retrofit -------------------- */
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-    implementation(libs.androidx.compose.ui.text)
-    implementation(libs.androidx.foundation)
+    /* -------------------- Other Services -------------------- */
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
     /* -------------------- Testing -------------------- */
     testImplementation(libs.junit)
@@ -93,27 +102,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    val cameraxVersion = "1.3.1" // Use the latest stable version
-
-    // CameraX core library using the camera2 implementation
-    implementation("androidx.camera:camera-camera2:$cameraxVersion")
-    // CameraX Lifecycle library
-    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
-    // CameraX View class (PreviewView)
-    implementation("androidx.camera:camera-view:$cameraxVersion")
-    // CameraX Extensions (optional but good for effects)
-    implementation("androidx.camera:camera-extensions:$cameraxVersion")
-
-    // Also ensure ML Kit is here for your face detection
-    implementation("com.google.mlkit:face-detection:16.1.6")
-
-    // Firebase Vertex AI for Gemini 3 Flash
-    implementation("com.google.firebase:firebase-vertexai:16.0.0")
-
-    // Ensure you also have the Firebase BoM (Bill of Materials)
-    // to manage versions automatically
-    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
 }
