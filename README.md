@@ -566,8 +566,8 @@ This project is developed for educational purposes as part of academic coursewor
 CSE 4510 - Software Development Lab
 
 - Course: CSE 4510 - Software Development  
-- Institution: [Your University Name]  
-- Instructor: [Instructor Name]  
+- Institution: Islamic University of Technology
+- Instructor: Shohel Ahmed 
 - Submission Date: March 3, 2026
 
 ---
