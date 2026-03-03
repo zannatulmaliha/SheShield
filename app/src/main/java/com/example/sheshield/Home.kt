@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -34,6 +35,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sheshield.screens.*
 import com.example.sheshield.SOS.*
+import com.example.sheshield.services.AudioRecorderService
 import com.example.sheshield.ui.screens.TimedCheckIn
 import com.example.sheshield.viewmodel.MovementViewModel
 import com.example.sheshield.services.VoiceCommandService
@@ -111,11 +113,31 @@ fun HomeContent(
 
     LaunchedEffect(Unit) { sosViewModel.initLocationClient(context) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-        if (permissions.values.all { it }) sosViewModel.sendSosAlert(context)
-        else sosViewModel.setErrorMessage("⚠️ Permissions required")
-    }
+//    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+//        if (permissions.values.all { it }) sosViewModel.sendSosAlert(context)
+//        else sosViewModel.setErrorMessage("⚠️ Permissions required")
+//    }
+// In your permission launcher result callback:
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        var permissionsGranted = allGranted
 
+        if (allGranted) {
+            sosViewModel.sendSosAlert(context)
+
+            // ✅ Start audio recorder HERE, after permissions confirmed
+            val intent = Intent(context, AudioRecorderService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } else {
+            sosViewModel.setErrorMessage("⚠️ Permissions required to send SOS alert")
+        }
+    }
     val voicePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         if (permissions.values.all { it }) {
             VoiceCommandService.start(context)
@@ -124,12 +146,63 @@ fun HomeContent(
         }
     }
 
+    // Add this near your other permission launchers (around line 70-80)
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("npm", "✅ Audio permission granted")
+        } else {
+            Log.d("npm", "❌ Audio permission denied")
+            sosViewModel.setErrorMessage("⚠️ Audio recording won't work without microphone permission")
+        }
+    }
+
     LaunchedEffect(sosState) {
+//        if (sosState == SosState.SENT) {
+//            val hasAudioPermission = ContextCompat.checkSelfPermission(
+//                context,
+//                Manifest.permission.RECORD_AUDIO
+//            ) == PackageManager.PERMISSION_GRANTED
+//
+//            if (!hasAudioPermission) {
+//                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+//            }
+//
+//            // THEN: Start audio recording service
+//            val intent = Intent(context, AudioRecorderService::class.java)
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                context.startForegroundService(intent)
+//            } else {
+//                context.startService(intent)
+//            }
+//            val hasSms = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+//            val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+//            if (hasSms && hasLoc) sosViewModel.sendSosAlert(context)
+//            else permissionLauncher.launch(arrayOf(Manifest.permission.SEND_SMS, Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.RECORD_AUDIO))
+//        }
         if (sosState == SosState.SENT) {
+            val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             val hasSms = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
             val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            if (hasSms && hasLoc) sosViewModel.sendSosAlert(context)
-            else permissionLauncher.launch(arrayOf(Manifest.permission.SEND_SMS, Manifest.permission.ACCESS_FINE_LOCATION))
+
+            if (hasSms && hasLoc && hasAudio) {
+                // ✅ All permissions ready — do everything now
+                sosViewModel.sendSosAlert(context)
+                val intent = Intent(context, AudioRecorderService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    context.startForegroundService(intent)
+                else
+                    context.startService(intent)
+            } else {
+                // ✅ Request all missing permissions at once — service starts in the launcher callback
+                permissionLauncher.launch(arrayOf(
+                    Manifest.permission.SEND_SMS,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.RECORD_AUDIO
+                ))
+            }
         }
     }
 
